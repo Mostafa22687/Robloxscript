@@ -1,0 +1,435 @@
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local player = Players.LocalPlayer
+local uis = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+local workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- GUI رئيسي
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MainMenu"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- زر فتح القائمة
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 180, 0, 40)
+toggleButton.Position = UDim2.new(0, 10, 0, 10)
+toggleButton.Text = "سكربت ابو الصوف"
+toggleButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+toggleButton.TextColor3 = Color3.fromRGB(255, 215, 0)
+toggleButton.Parent = screenGui
+
+-- الإطار الرئيسي
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 500, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -250, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+mainFrame.BorderColor3 = Color3.fromRGB(255,215,0)
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+-- شريط التبويبات
+local tabBar = Instance.new("Frame")
+tabBar.Size = UDim2.new(1, 0, 0, 30)
+tabBar.BackgroundColor3 = Color3.fromRGB(0,0,0)
+tabBar.BorderColor3 = Color3.fromRGB(255,215,0)
+tabBar.Parent = mainFrame
+
+-- محتوى التبويبات
+local contentFrame = Instance.new("Frame")
+contentFrame.Size = UDim2.new(1, 0, 1, -30)
+contentFrame.Position = UDim2.new(0,0,0,30)
+contentFrame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+contentFrame.Parent = mainFrame
+
+-- دالة إنشاء التبويبات
+local tabs = {}
+local tabIndex = 0
+local function createTab(name)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 100, 1, 0)
+    button.Position = UDim2.new(0, tabIndex * 110, 0, 0)
+    button.Text = name
+    button.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    button.BorderColor3 = Color3.fromRGB(255,215,0)
+    button.TextColor3 = Color3.fromRGB(255,215,0)
+    button.Parent = tabBar
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundTransparency = 1
+    frame.Visible = false
+    frame.Parent = contentFrame
+
+    tabs[name] = {Button = button, Frame = frame}
+
+    button.MouseButton1Click:Connect(function()
+        for _, tab in pairs(tabs) do
+            tab.Frame.Visible = false
+        end
+        frame.Visible = true
+    end)
+
+    tabIndex +=1
+end
+
+-- إنشاء التبويبات
+createTab("Home")
+createTab("ESP")
+createTab("Server")
+createTab("Settings")
+
+-- زر إظهار/إخفاء القائمة
+toggleButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- دالة الصوت عند التفعيل/إيقاف
+local function playToggleSound(isEnabled)
+    local sound = Instance.new("Sound")
+    sound.SoundId = isEnabled and "rbxassetid://5852470908" or "rbxassetid://2865227271"
+    sound.Parent = workspace
+    sound:Play()
+    sound.Ended:Connect(function() sound:Destroy() end)
+end
+
+-------------------------------
+-- قسم Home
+-------------------------------
+local homeFrame = tabs["Home"].Frame
+
+-- Fly
+local flyButton = Instance.new("TextButton")
+flyButton.Size = UDim2.new(0,150,0,40)
+flyButton.Position = UDim2.new(0,10,0,10)
+flyButton.Text = "Fly: OFF"
+flyButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+flyButton.BorderColor3 = Color3.fromRGB(255,215,0)
+flyButton.TextColor3 = Color3.fromRGB(255,215,0)
+flyButton.Parent = homeFrame
+
+local flyEnabled = false
+local jumpCooldown = 0.5
+local lastJump = 0
+
+flyButton.MouseButton1Click:Connect(function()
+    flyEnabled = not flyEnabled
+    flyButton.Text = flyEnabled and "Fly: ON" or "Fly: OFF"
+    flyButton.BackgroundColor3 = flyEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(0,0,0)
+    playToggleSound(flyEnabled)
+end)
+
+uis.JumpRequest:Connect(function()
+    if flyEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+        local currentTime = tick()
+        if currentTime - lastJump < jumpCooldown then return end
+        lastJump = currentTime
+        local humanoid = player.Character.Humanoid
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        humanoid.UseJumpPower = true
+        humanoid.JumpPower = 80
+    end
+end)
+
+-- Speed
+local speedButton = Instance.new("TextButton")
+speedButton.Size = UDim2.new(0,150,0,40)
+speedButton.Position = UDim2.new(0,10,0,60)
+speedButton.Text = "Speed: OFF"
+speedButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+speedButton.BorderColor3 = Color3.fromRGB(255,215,0)
+speedButton.TextColor3 = Color3.fromRGB(255,215,0)
+speedButton.Parent = homeFrame
+
+local speedEnabled = false
+local normalSpeed = 16
+local boostSpeed = 24
+
+speedButton.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    speedButton.Text = speedEnabled and "Speed: ON" or "Speed: OFF"
+    speedButton.BackgroundColor3 = speedEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(0,0,0)
+    playToggleSound(speedEnabled)
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.WalkSpeed = speedEnabled and boostSpeed or normalSpeed
+    end
+end)
+
+player.CharacterAdded:Connect(function(char)
+    char:WaitForChild("Humanoid")
+    if speedEnabled then char.Humanoid.WalkSpeed = boostSpeed end
+end)
+
+-- Invisible
+local invisibleButton = Instance.new("TextButton")
+invisibleButton.Size = UDim2.new(0,150,0,40)
+invisibleButton.Position = UDim2.new(0,10,0,110)
+invisibleButton.Text = "Invisible: OFF"
+invisibleButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+invisibleButton.BorderColor3 = Color3.fromRGB(255,215,0)
+invisibleButton.TextColor3 = Color3.fromRGB(255,215,0)
+invisibleButton.Parent = homeFrame
+
+local invisibleEnabled = false
+invisibleButton.MouseButton1Click:Connect(function()
+    invisibleEnabled = not invisibleEnabled
+    invisibleButton.Text = invisibleEnabled and "Invisible: ON" or "Invisible: OFF"
+    invisibleButton.BackgroundColor3 = invisibleEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(0,0,0)
+    playToggleSound(invisibleEnabled)
+    if player.Character then
+        for _, part in pairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Transparency = invisibleEnabled and 1 or 0
+            end
+        end
+    end
+end)
+
+-- Auto Steal (قائمة منفصلة)
+local autoStealGui = Instance.new("ScreenGui")
+autoStealGui.Name = "AutoStealGUI"
+autoStealGui.ResetOnSpawn = false
+autoStealGui.Parent = player:WaitForChild("PlayerGui")
+
+local autoStealFrame = Instance.new("Frame")
+autoStealFrame.Size = UDim2.new(0, 350, 0, 200)
+autoStealFrame.Position = UDim2.new(0.5, -175, 0.5, -100)
+autoStealFrame.BackgroundColor3 = Color3.fromRGB(10,10,10)
+autoStealFrame.BorderColor3 = Color3.fromRGB(255,215,0)
+autoStealFrame.BorderSizePixel = 3
+autoStealFrame.Active = true
+autoStealFrame.Draggable = true
+autoStealFrame.Parent = autoStealGui
+
+local autoTitle = Instance.new("TextLabel")
+autoTitle.Size = UDim2.new(1,0,0,40)
+autoTitle.Position = UDim2.new(0,0,0,0)
+autoTitle.BackgroundTransparency = 1
+autoTitle.Text = "Auto Steal"
+autoTitle.TextColor3 = Color3.fromRGB(255,215,0)
+autoTitle.TextScaled = true
+autoTitle.Font = Enum.Font.SourceSansBold
+autoTitle.Parent = autoStealFrame
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1,0,0,30)
+statusLabel.Position = UDim2.new(0,0,0,150)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "اضغط الزر للبدء"
+statusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.SourceSans
+statusLabel.Parent = autoStealFrame
+
+local autoStealButton = Instance.new("TextButton")
+autoStealButton.Size = UDim2.new(0,200,0,50)
+autoStealButton.Position = UDim2.new(0.5, -100, 0.5, -25)
+autoStealButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+autoStealButton.BorderColor3 = Color3.fromRGB(255,215,0)
+autoStealButton.BorderSizePixel = 2
+autoStealButton.Text = "اضغط لحفظ الموقع الأول"
+autoStealButton.TextColor3 = Color3.fromRGB(255,215,0)
+autoStealButton.TextScaled = true
+autoStealButton.Font = Enum.Font.SourceSansBold
+autoStealButton.Parent = autoStealFrame
+
+local savedPositions = {}
+local autoStealRunning = false
+local jumpInterval = 1
+
+local function startAutoSteal()
+    if #savedPositions < 2 then return end
+    autoStealRunning = true
+    statusLabel.Text = "Auto Steal قيد التشغيل..."
+    local currentTarget = 1
+    local lastJump = tick()
+
+    runService.RenderStepped:Connect(function()
+        if not autoStealRunning then return end
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+            local hrp = char.HumanoidRootPart
+            local humanoid = char.Humanoid
+
+            humanoid:MoveTo(savedPositions[currentTarget])
+
+            if tick() - lastJump >= jumpInterval then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                lastJump = tick()
+            end
+
+            if (hrp.Position - savedPositions[currentTarget]).Magnitude < 4 then
+                currentTarget +=1
+                if currentTarget > #savedPositions then
+                    autoStealRunning = false
+                    statusLabel.Text = "تم الوصول إلى كلا الموقعين!"
+                end
+            end
+        end
+    end)
+end
+
+autoStealButton.MouseButton1Click:Connect(function()
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrpPos = char.HumanoidRootPart.Position
+
+    if #savedPositions == 0 then
+        table.insert(savedPositions, hrpPos)
+        autoStealButton.Text = "اضغط لحفظ الموقع الثاني"
+        statusLabel.Text = "تم حفظ الموقع الأول"
+    elseif #savedPositions == 1 then
+        table.insert(savedPositions, hrpPos)
+        autoStealButton.Text = "تشغيل Auto Steal"
+        statusLabel.Text = "تم حفظ الموقع الثاني"
+    else
+        startAutoSteal()
+    end
+end)
+------------------------------------------------
+-- قسم ESP
+------------------------------------------------
+local espFrame = tabs["ESP"].Frame
+
+-- ESP Toggle
+local espButton = Instance.new("TextButton")
+espButton.Size = UDim2.new(0,150,0,40)
+espButton.Position = UDim2.new(0,10,0,10)
+espButton.Text = "ESP: OFF"
+espButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+espButton.BorderColor3 = Color3.fromRGB(255,215,0)
+espButton.TextColor3 = Color3.fromRGB(255,215,0)
+espButton.Parent = espFrame
+
+local espEnabled = false
+local highlights = {}
+
+local function createHighlight(plr,color)
+    if plr.Character and not highlights[plr] then
+        local hl = Instance.new("Highlight")
+        hl.Adornee = plr.Character
+        hl.FillTransparency = 0.6
+        hl.OutlineTransparency = 0.5
+        hl.FillColor = color or Color3.fromRGB(255,0,0)
+        hl.OutlineColor = color or Color3.fromRGB(255,0,0)
+        hl.Parent = workspace
+        highlights[plr] = hl
+    end
+end
+
+local function removeHighlights()
+    for _, hl in pairs(highlights) do
+        if hl then hl:Destroy() end
+    end
+    highlights = {}
+end
+
+espButton.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    espButton.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+    espButton.BackgroundColor3 = espEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(0,0,0)
+    playToggleSound(espEnabled)
+    if espEnabled then
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= player then createHighlight(plr) end
+        end
+    else
+        removeHighlights()
+    end
+end)
+
+Players.PlayerAdded:Connect(function(plr)
+    if espEnabled then createHighlight(plr) end
+end)
+Players.PlayerRemoving:Connect(function(plr)
+    if highlights[plr] then highlights[plr]:Destroy() highlights[plr]=nil end
+end)
+
+------------------------------------------------
+-- قسم Server
+------------------------------------------------
+local serverFrame = tabs["Server"].Frame
+
+local rejoinButton = Instance.new("TextButton")
+rejoinButton.Size = UDim2.new(0,150,0,40)
+rejoinButton.Position = UDim2.new(0,10,0,10)
+rejoinButton.Text = "Rejoin"
+rejoinButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+rejoinButton.BorderColor3 = Color3.fromRGB(255,215,0)
+rejoinButton.TextColor3 = Color3.fromRGB(255,215,0)
+rejoinButton.Parent = serverFrame
+
+rejoinButton.MouseButton1Click:Connect(function()
+    playToggleSound(true)
+    TeleportService:Teleport(game.PlaceId,player)
+end)
+
+local teleportButton = Instance.new("TextButton")
+teleportButton.Size = UDim2.new(0,150,0,40)
+teleportButton.Position = UDim2.new(0,10,0,60)
+teleportButton.Text = "Teleport Server"
+teleportButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+teleportButton.BorderColor3 = Color3.fromRGB(255,215,0)
+teleportButton.TextColor3 = Color3.fromRGB(255,215,0)
+teleportButton.Parent = serverFrame
+
+teleportButton.MouseButton1Click:Connect(function()
+    playToggleSound(true)
+    local servers = {}
+    local success, data = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
+    end)
+    if success and data and data.data then
+        for _, v in pairs(data.data) do
+            if v.id ~= game.JobId and v.playing < v.maxP then table.insert(servers,v.id) end
+        end
+    end
+    if #servers >0 then
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1,#servers)], player)
+    end
+end)
+
+------------------------------------------------
+-- قسم Settings
+------------------------------------------------
+local settingsFrame = tabs["Settings"].Frame
+
+local languageButton = Instance.new("TextButton")
+languageButton.Size = UDim2.new(0,150,0,40)
+languageButton.Position = UDim2.new(0,10,0,10)
+languageButton.Text = "Language: English"
+languageButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+languageButton.BorderColor3 = Color3.fromRGB(255,215,0)
+languageButton.TextColor3 = Color3.fromRGB(255,215,0)
+languageButton.Parent = settingsFrame
+
+local currentLang = "English"
+
+languageButton.MouseButton1Click:Connect(function()
+    if currentLang == "English" then
+        currentLang = "Arabic"
+        languageButton.Text = "اللغة: العربية"
+        flyButton.Text = flyEnabled and "طيران: تشغيل" or "طيران: إيقاف"
+        speedButton.Text = speedEnabled and "سرعة: تشغيل" or "سرعة: إيقاف"
+        invisibleButton.Text = invisibleEnabled and "اللا مرئي: تشغيل" or "اللا مرئي: إيقاف"
+        espButton.Text = espEnabled and "ESP: تشغيل" or "ESP: إيقاف"
+        rejoinButton.Text = "إعادة الدخول"
+        teleportButton.Text = "تبديل السيرفر"
+    else
+        currentLang = "English"
+        languageButton.Text = "Language: English"
+        flyButton.Text = flyEnabled and "Fly: ON" or "Fly: OFF"
+        speedButton.Text = speedEnabled and "Speed: ON" or "Speed: OFF"
+        invisibleButton.Text = invisibleEnabled and "Invisible: ON" or "Invisible: OFF"
+        espButton.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+        rejoinButton.Text = "Rejoin"
+        teleportButton.Text = "Teleport Server"
+    end
+end)
+
+-- افتح تبويب Home افتراضياً
+tabs["Home"].Frame.Visible = true
+                                                                      
