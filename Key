@@ -1,0 +1,95 @@
+-- الخدمات
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+-- GUI رئيسي
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false
+
+-- الإطار (القائمة)
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 180)
+frame.Position = UDim2.new(0.5, -150, 0.5, -90)
+frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- أسود
+frame.BorderColor3 = Color3.fromRGB(255, 215, 0) -- ذهبي
+frame.BorderSizePixel = 2
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+-- العنوان
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 35)
+title.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+title.BorderColor3 = Color3.fromRGB(255, 215, 0)
+title.BorderSizePixel = 2
+title.Text = " 🔑 سكربت ابو الصوف 🔑 "
+title.TextColor3 = Color3.fromRGB(255, 215, 0) -- ذهبي
+title.TextScaled = true
+title.Font = Enum.Font.SourceSansBold
+title.Parent = frame
+
+-- مربع إدخال الكود
+local textBox = Instance.new("TextBox")
+textBox.Size = UDim2.new(0.9, 0, 0, 30)
+textBox.Position = UDim2.new(0.05, 0, 0.3, 0)
+textBox.PlaceholderText = "اكتب الكود هنا..."
+textBox.Text = ""
+textBox.TextScaled = true
+textBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+textBox.TextColor3 = Color3.fromRGB(255,255,255)
+textBox.BorderColor3 = Color3.fromRGB(255, 215, 0)
+textBox.BorderSizePixel = 2
+textBox.Parent = frame
+
+-- زر GET KEY
+local getKeyBtn = Instance.new("TextButton")
+getKeyBtn.Size = UDim2.new(0.4, 0, 0, 30)
+getKeyBtn.Position = UDim2.new(0.05, 0, 0.65, 0)
+getKeyBtn.Text = "GET KEY"
+getKeyBtn.BackgroundColor3 = Color3.fromRGB(255, 215, 0) -- ذهبي
+getKeyBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+getKeyBtn.TextScaled = true
+getKeyBtn.BorderColor3 = Color3.fromRGB(255, 255, 255) -- إطار أبيض
+getKeyBtn.BorderSizePixel = 2
+getKeyBtn.Parent = frame
+
+-- زر CHECK KEY
+local checkKeyBtn = Instance.new("TextButton")
+checkKeyBtn.Size = UDim2.new(0.4, 0, 0, 30)
+checkKeyBtn.Position = UDim2.new(0.55, 0, 0.65, 0)
+checkKeyBtn.Text = "CHECK KEY"
+checkKeyBtn.BackgroundColor3 = Color3.fromRGB(255, 215, 0) -- ذهبي
+checkKeyBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+checkKeyBtn.TextScaled = true
+checkKeyBtn.BorderColor3 = Color3.fromRGB(255, 255, 255) -- إطار أبيض
+checkKeyBtn.BorderSizePixel = 2
+checkKeyBtn.Parent = frame
+
+-- الأكواد الصحيحة
+local validKeys = {
+    ["ABOALSOF0"] = true,
+    ["SOFY26MOS"] = true,
+    ["MOSTFY02Z"] = true
+}
+
+-- وظيفة زر GET KEY (نسخ الرابط)
+getKeyBtn.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard("https://www.tiktok.com/@xrq_01?_t=ZS-8zugXDOQsC0&_r=1")
+    end
+end)
+
+-- وظيفة زر CHECK KEY (يتأكد من الكود)
+checkKeyBtn.MouseButton1Click:Connect(function()
+    local inputKey = textBox.Text
+    if validKeys[inputKey] then
+        frame.Visible = false
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Mostafa22687/Robloxscript/refs/heads/main/Reallyscript"))()
+    else
+        textBox.Text = ""
+        textBox.PlaceholderText = "❌ Wrong Key!"
+    end
+end)
