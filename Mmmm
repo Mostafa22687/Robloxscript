@@ -1,0 +1,349 @@
+-- سكربت ابو الصوف 🟥 النسخة النهائية
+-- by Luau
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local runService = game:GetService("RunService")
+local uis = game:GetService("UserInputService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local workspace = game:GetService("Workspace")
+
+------------------------------------------------
+-- Main GUI
+------------------------------------------------
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AllInOneMenu"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- زر فتح القائمة
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 160, 0, 40)
+toggleButton.Position = UDim2.new(0, 10, 0, 10)
+toggleButton.Text = "سكربت ابو الصوف"
+toggleButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+toggleButton.TextColor3 = Color3.fromRGB(255,0,0)
+toggleButton.BorderColor3 = Color3.fromRGB(255,0,0)
+toggleButton.Parent = screenGui
+
+-- الإطار الرئيسي
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(10,10,10)
+mainFrame.BorderColor3 = Color3.fromRGB(255,0,0)
+mainFrame.Visible = false
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+-- ScrollingFrame
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, 0, 1, 0)
+scrollFrame.CanvasSize = UDim2.new(0,0,0,800)
+scrollFrame.ScrollBarThickness = 6
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.Parent = mainFrame
+
+-- دالة الصوت
+local function playToggleSound(isEnabled)
+    local sound = Instance.new("Sound")
+    sound.SoundId = isEnabled and "rbxassetid://5852470908" or "rbxassetid://2865227271"
+    sound.Parent = workspace
+    sound:Play()
+    sound.Ended:Connect(function() sound:Destroy() end)
+end
+
+-- دالة لإنشاء الأزرار
+local function createButton(name, order, callback)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, -20, 0, 40)
+    button.Position = UDim2.new(0, 10, 0, order * 45)
+    button.Text = name
+    button.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    button.TextColor3 = Color3.fromRGB(255,0,0)
+    button.BorderColor3 = Color3.fromRGB(255,0,0)
+    button.Parent = scrollFrame
+    button.MouseButton1Click:Connect(function()
+        playToggleSound(true)
+        callback()
+    end)
+    return button
+end
+
+-- تشغيل/إخفاء القائمة
+toggleButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+    playToggleSound(mainFrame.Visible)
+end)
+
+------------------------------------------------
+-- 1. Fly
+------------------------------------------------
+local flyEnabled = false
+local flyButton
+flyButton = createButton("Fly: OFF", 0, function()
+    flyEnabled = not flyEnabled
+    flyButton.Text = flyEnabled and "Fly: ON" or "Fly: OFF"
+end)
+
+uis.JumpRequest:Connect(function()
+    if flyEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+        local hum = player.Character.Humanoid
+        hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        hum.UseJumpPower = true
+        hum.JumpPower = 80
+    end
+end)
+
+------------------------------------------------
+-- 2. Speed
+------------------------------------------------
+local speedEnabled = false
+local speedButton
+speedButton = createButton("Speed: OFF", 1, function()
+    speedEnabled = not speedEnabled
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.WalkSpeed = speedEnabled and 24 or 16
+    end
+    speedButton.Text = speedEnabled and "Speed: ON" or "Speed: OFF"
+end)
+
+------------------------------------------------
+-- 3. Invisible
+------------------------------------------------
+local invisibleEnabled = false
+local invisibleButton
+invisibleButton = createButton("Invisible: OFF", 2, function()
+    invisibleEnabled = not invisibleEnabled
+    invisibleButton.Text = invisibleEnabled and "Invisible: ON" or "Invisible: OFF"
+    if player.Character then
+        for _, part in pairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.Transparency = invisibleEnabled and 1 or 0
+            end
+        end
+    end
+end)
+
+------------------------------------------------
+-- 4. Plus Block
+------------------------------------------------
+local blockActive = false
+local block = nil
+local blockButton
+blockButton = createButton("Plus Block: OFF", 3, function()
+    blockActive = not blockActive
+    blockButton.Text = blockActive and "Plus Block: ON" or "Plus Block: OFF"
+
+    if blockActive then
+        if not block then
+            block = Instance.new("Part")
+            block.Size = Vector3.new(6,1,6)
+            block.Anchored = true
+            block.Material = Enum.Material.Neon
+            block.Color = Color3.fromRGB(255,0,0)
+            block.Parent = workspace
+        end
+    else
+        if block then
+            block:Destroy()
+            block = nil
+        end
+    end
+end)
+
+runService.RenderStepped:Connect(function()
+    if blockActive and block and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+        block.Position = hrp.Position - Vector3.new(0, hrp.Size.Y/2 + 2.5, 0)
+    end
+end)
+
+------------------------------------------------
+-- 5. ESP
+------------------------------------------------
+local espEnabled = false
+local espButton
+local highlights = {}
+
+local function createHighlight(plr)
+    if plr.Character and not highlights[plr] then
+        local hl = Instance.new("Highlight")
+        hl.Adornee = plr.Character
+        hl.FillTransparency = 0.6
+        hl.OutlineTransparency = 0
+        hl.FillColor = Color3.fromRGB(255,0,0)
+        hl.OutlineColor = Color3.fromRGB(255,0,0)
+        hl.Parent = workspace
+        highlights[plr] = hl
+    end
+end
+
+local function removeHighlights()
+    for _, hl in pairs(highlights) do
+        if hl then hl:Destroy() end
+    end
+    highlights = {}
+end
+
+espButton = createButton("ESP: OFF", 4, function()
+    espEnabled = not espEnabled
+    espButton.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+    if espEnabled then
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= player then createHighlight(plr) end
+        end
+    else
+        removeHighlights()
+    end
+end)
+
+Players.PlayerAdded:Connect(function(plr)
+    if espEnabled then createHighlight(plr) end
+end)
+Players.PlayerRemoving:Connect(function(plr)
+    if highlights[plr] then highlights[plr]:Destroy() highlights[plr]=nil end
+end)
+
+------------------------------------------------
+-- 6. Rejoin
+------------------------------------------------
+local rejoinButton
+rejoinButton = createButton("Rejoin", 5, function()
+    TeleportService:Teleport(game.PlaceId, player)
+end)
+
+------------------------------------------------
+-- 7. Teleport Server
+------------------------------------------------
+local teleportButton
+teleportButton = createButton("Teleport Server", 6, function()
+    local servers = {}
+    local success, data = pcall(function()
+        return HttpService:JSONDecode(
+            game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100")
+        )
+    end)
+
+    if success and data and data.data then
+        for _, v in pairs(data.data) do
+            if v.id ~= game.JobId and v.playing < v.maxPlayers then
+                table.insert(servers, v.id)
+            end
+        end
+    end
+
+    if #servers > 0 then
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], player)
+    end
+end)
+
+------------------------------------------------
+-- 8. Auto Steal (نافذة مستقلة)
+------------------------------------------------
+local autoStealGui = Instance.new("ScreenGui")
+autoStealGui.Name = "AutoStealGUI"
+autoStealGui.ResetOnSpawn = false
+autoStealGui.Parent = player:WaitForChild("PlayerGui")
+
+local autoStealFrame = Instance.new("Frame")
+autoStealFrame.Size = UDim2.new(0, 350, 0, 200)
+autoStealFrame.Position = UDim2.new(0.5, -175, 0.5, -100)
+autoStealFrame.BackgroundColor3 = Color3.fromRGB(10,10,10)
+autoStealFrame.BorderColor3 = Color3.fromRGB(255,0,0)
+autoStealFrame.Active = true
+autoStealFrame.Draggable = true
+autoStealFrame.Visible = false
+autoStealFrame.Parent = autoStealGui
+
+local autoTitle = Instance.new("TextLabel")
+autoTitle.Size = UDim2.new(1,0,0,40)
+autoTitle.Text = "Auto Steal"
+autoTitle.BackgroundTransparency = 1
+autoTitle.TextColor3 = Color3.fromRGB(255,0,0)
+autoTitle.TextScaled = true
+autoTitle.Font = Enum.Font.SourceSansBold
+autoTitle.Parent = autoStealFrame
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1,0,0,30)
+statusLabel.Position = UDim2.new(0,0,0,150)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "اضغط الزر للبدء"
+statusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.SourceSans
+statusLabel.Parent = autoStealFrame
+
+local autoStealButton = Instance.new("TextButton")
+autoStealButton.Size = UDim2.new(0,200,0,50)
+autoStealButton.Position = UDim2.new(0.5, -100, 0.5, -25)
+autoStealButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+autoStealButton.BorderColor3 = Color3.fromRGB(255,0,0)
+autoStealButton.Text = "اضغط لحفظ الموقع الأول"
+autoStealButton.TextColor3 = Color3.fromRGB(255,0,0)
+autoStealButton.TextScaled = true
+autoStealButton.Font = Enum.Font.SourceSansBold
+autoStealButton.Parent = autoStealFrame
+
+local savedPositions = {}
+local autoStealRunning = false
+local jumpInterval = 1
+
+local function startAutoSteal()
+    if #savedPositions < 2 then return end
+    autoStealRunning = true
+    statusLabel.Text = "Auto Steal قيد التشغيل..."
+    local currentTarget = 1
+    local lastJump = tick()
+
+    runService.RenderStepped:Connect(function()
+        if not autoStealRunning then return end
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+            local hrp = char.HumanoidRootPart
+            local humanoid = char.Humanoid
+
+            humanoid:MoveTo(savedPositions[currentTarget])
+
+            if tick() - lastJump >= jumpInterval then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                lastJump = tick()
+            end
+
+            if (hrp.Position - savedPositions[currentTarget]).Magnitude < 4 then
+                currentTarget +=1
+                if currentTarget > #savedPositions then
+                    autoStealRunning = false
+                    statusLabel.Text = "تم الوصول إلى كلا الموقعين!"
+                end
+            end
+        end
+    end)
+end
+
+autoStealButton.MouseButton1Click:Connect(function()
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrpPos = char.HumanoidRootPart.Position
+
+    if #savedPositions == 0 then
+        table.insert(savedPositions, hrpPos)
+        autoStealButton.Text = "اضغط لحفظ الموقع الثاني"
+        statusLabel.Text = "تم حفظ الموقع الأول"
+    elseif #savedPositions == 1 then
+        table.insert(savedPositions, hrpPos)
+        autoStealButton.Text = "تشغيل Auto Steal"
+        statusLabel.Text = "تم حفظ الموقع الثاني"
+    else
+        startAutoSteal()
+    end
+end)
+
+-- زر في القائمة الرئيسية لفتح Auto Steal
+local autoStealToggle = createButton("Auto Steal Window", 7, function()
+    autoStealFrame.Visible = not autoStealFrame.Visible
+    playToggleSound(autoStealFrame.Visible)
+end)
