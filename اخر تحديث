@@ -1,0 +1,413 @@
+-- سكربت ابو الصوف 🟥 النسخة النهائية مع جميع الخواص
+-- by Luau
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local runService = game:GetService("RunService")
+local uis = game:GetService("UserInputService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local workspace = game:GetService("Workspace")
+
+------------------------------------------------
+-- Main GUI
+------------------------------------------------
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AllInOneMenu"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- زر فتح القائمة (دائري مع صورة ورينبو محيط)
+local toggleHolder = Instance.new("Frame")
+toggleHolder.Size = UDim2.new(0, 72, 0, 72)
+toggleHolder.Position = UDim2.new(0, 10, 0, 10)
+toggleHolder.BackgroundTransparency = 1
+toggleHolder.Parent = screenGui
+toggleHolder.ZIndex = 10
+
+local ring = Instance.new("Frame")
+ring.Size = UDim2.new(1, 0, 1, 0)
+ring.BackgroundTransparency = 0
+ring.Parent = toggleHolder
+local ringCorner = Instance.new("UICorner")
+ringCorner.CornerRadius = UDim.new(1,0)
+ringCorner.Parent = ring
+local ringGradient = Instance.new("UIGradient")
+ringGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,0))
+}
+ringGradient.Parent = ring
+task.spawn(function()
+    while task.wait(0.05) do
+        ringGradient.Rotation = (ringGradient.Rotation + 4) % 360
+    end
+end)
+
+local toggleButton = Instance.new("ImageButton")
+toggleButton.Size = UDim2.new(0.86, 0, 0.86, 0)
+toggleButton.Position = UDim2.new(0.07, 0, 0.07, 0)
+toggleButton.Image = "rbxassetid://72719205179018"
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+toggleButton.BorderSizePixel = 0
+toggleButton.Parent = toggleHolder
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(1, 0)
+uiCorner.Parent = toggleButton
+
+-- سحب الزر
+local dragging, dragInput, dragStart, startPos
+local function update(input)
+    local delta = input.Position - dragStart
+    toggleHolder.Position = UDim2.new(
+        startPos.X.Scale, startPos.X.Offset + delta.X,
+        startPos.Y.Scale, startPos.Y.Offset + delta.Y
+    )
+end
+toggleHolder.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = toggleHolder.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+toggleHolder.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+uis.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+-- القائمة الرئيسية
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(10,10,10)
+mainFrame.BorderColor3 = Color3.fromRGB(255,0,0)
+mainFrame.Visible = false
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, 0, 1, 0)
+scrollFrame.CanvasSize = UDim2.new(0,0,0,1000)
+scrollFrame.ScrollBarThickness = 6
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.Parent = mainFrame
+
+toggleButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- دالة إنشاء زر
+local function createButton(name, order, callback)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, -20, 0, 40)
+    button.Position = UDim2.new(0, 10, 0, order * 45)
+    button.Text = name
+    button.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    button.TextColor3 = Color3.fromRGB(255,0,0)
+    button.BorderColor3 = Color3.fromRGB(255,0,0)
+    button.Parent = scrollFrame
+    button.MouseButton1Click:Connect(callback)
+    return button
+end
+
+------------------------------------------------
+-- 1. Fly
+------------------------------------------------
+local flyEnabled = false
+local flyButton
+local lastFlyJump = 0
+local flyCooldown = 0.5
+flyButton = createButton("Fly: OFF", 0, function()
+    flyEnabled = not flyEnabled
+    flyButton.Text = flyEnabled and "Fly: ON" or "Fly: OFF"
+end)
+uis.JumpRequest:Connect(function()
+    if flyEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+        if tick() - lastFlyJump >= flyCooldown then
+            local hum = player.Character.Humanoid
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+            hum.UseJumpPower = true
+            hum.JumpPower = 80
+            lastFlyJump = tick()
+        end
+    end
+end)
+
+------------------------------------------------
+-- 2. Speed
+------------------------------------------------
+local speedEnabled = false
+local speedButton
+speedButton = createButton("Speed: OFF", 1, function()
+    speedEnabled = not speedEnabled
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.WalkSpeed = speedEnabled and 24 or 16
+    end
+    speedButton.Text = speedEnabled and "Speed: ON" or "Speed: OFF"
+end)
+
+------------------------------------------------
+-- 3. Invisible
+------------------------------------------------
+local invisibleEnabled = false
+local invisibleButton
+invisibleButton = createButton("Invisible: OFF", 2, function()
+    invisibleEnabled = not invisibleEnabled
+    invisibleButton.Text = invisibleEnabled and "Invisible: ON" or "Invisible: OFF"
+    if player.Character then
+        for _, part in pairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.Transparency = invisibleEnabled and 1 or 0
+            end
+        end
+    end
+end)
+
+------------------------------------------------
+-- 4. Plus Block
+------------------------------------------------
+local blockActive = false
+local block = nil
+local blockButton
+blockButton = createButton("Plus Block: OFF", 3, function()
+    blockActive = not blockActive
+    blockButton.Text = blockActive and "Plus Block: ON" or "Plus Block: OFF"
+    if blockActive then
+        if not block then
+            block = Instance.new("Part")
+            block.Size = Vector3.new(6,1,6)
+            block.Anchored = true
+            block.Material = Enum.Material.Neon
+            block.Color = Color3.fromRGB(255,0,0)
+            block.Parent = workspace
+        end
+    else
+        if block then block:Destroy() block=nil end
+    end
+end)
+runService.RenderStepped:Connect(function()
+    if blockActive and block and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+        block.Position = hrp.Position - Vector3.new(0, hrp.Size.Y/2 + 2.5, 0)
+    end
+end)
+
+------------------------------------------------
+-- 5. ESP مطور
+------------------------------------------------
+local espEnabled = false
+local espButton
+local highlights, nameTags = {}, {}
+local function rainbowColor(t)
+    local r = math.abs(math.sin(t))
+    local g = 0
+    local b = math.abs(math.cos(t))
+    return Color3.new(r, g, b)
+end
+local function createESP(plr)
+    if not plr.Character then return end
+    if not highlights[plr] then
+        local hl = Instance.new("Highlight")
+        hl.Adornee = plr.Character
+        hl.FillTransparency = 0.5
+        hl.OutlineTransparency = 0
+        hl.Parent = plr.Character
+        highlights[plr] = hl
+    end
+    if not nameTags[plr] then
+        local billboard = Instance.new("BillboardGui")
+        billboard.Size = UDim2.new(0,200,0,50)
+        billboard.Adornee = plr.Character:WaitForChild("Head")
+        billboard.AlwaysOnTop = true
+        local text = Instance.new("TextLabel")
+        text.Size = UDim2.new(1,0,1,0)
+        text.BackgroundTransparency = 1
+        text.Text = plr.Name
+        text.TextScaled = true
+        text.Font = Enum.Font.SourceSansBold
+        text.Parent = billboard
+        billboard.Parent = plr.Character
+        nameTags[plr] = text
+    end
+end
+espButton = createButton("ESP: OFF", 4, function()
+    espEnabled = not espEnabled
+    espButton.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+    if espEnabled then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= player then createESP(plr) end
+        end
+    else
+        for _, hl in pairs(highlights) do if hl then hl:Destroy() end end
+        for _, lbl in pairs(nameTags) do if lbl and lbl.Parent then lbl.Parent:Destroy() end end
+        highlights, nameTags = {}, {}
+    end
+end)
+runService.RenderStepped:Connect(function()
+    if espEnabled then
+        local t = tick()
+        for plr, hl in pairs(highlights) do
+            if hl and hl.Parent then
+                local col = rainbowColor(t)
+                hl.FillColor = col
+                hl.OutlineColor = col
+            else
+                createESP(plr)
+            end
+        end
+        for plr, lbl in pairs(nameTags) do
+            if lbl and lbl.Parent then
+                lbl.TextColor3 = rainbowColor(t + 1)
+            end
+        end
+    end
+end)
+Players.PlayerAdded:Connect(function(plr) if espEnabled then createESP(plr) end end)
+
+------------------------------------------------
+-- 6. Rejoin
+------------------------------------------------
+createButton("Rejoin", 6, function()
+    TeleportService:Teleport(game.PlaceId, player)
+end)
+
+------------------------------------------------
+-- 7. Teleport Server
+------------------------------------------------
+createButton("Teleport Server", 7, function()
+    local servers = {}
+    local success, data = pcall(function()
+        return HttpService:JSONDecode(
+            game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100")
+        )
+    end)
+    if success and data and data.data then
+        for _, v in pairs(data.data) do
+            if v.id ~= game.JobId and v.playing < v.maxPlayers then
+                table.insert(servers, v.id)
+            end
+        end
+    end
+    if #servers > 0 then
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], player)
+    end
+end)
+
+------------------------------------------------
+-- 8. Auto Steal (نفس القديم)
+------------------------------------------------
+-- (يبقى زي ما أرسلته لك قبل) 
+
+------------------------------------------------
+-- 9. AutoClick مطور
+------------------------------------------------
+local acGui = Instance.new("ScreenGui")
+acGui.Name = "AutoClickGUI"
+acGui.Parent = player:WaitForChild("PlayerGui")
+
+local acFrame = Instance.new("Frame")
+acFrame.Size = UDim2.new(0, 200, 0, 150)
+acFrame.Position = UDim2.new(0.5, -100, 0.5, -75)
+acFrame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+acFrame.BorderColor3 = Color3.fromRGB(255,0,0)
+acFrame.Visible = false
+acFrame.Active = true
+acFrame.Draggable = true
+acFrame.Parent = acGui
+
+local acToggle = Instance.new("TextButton")
+acToggle.Size = UDim2.new(0,100,0,40)
+acToggle.Position = UDim2.new(0.5, -50, 0, 10)
+acToggle.BackgroundColor3 = Color3.fromRGB(0,0,0)
+acToggle.BorderColor3 = Color3.fromRGB(255,0,0)
+acToggle.Text = "OFF"
+acToggle.TextColor3 = Color3.fromRGB(255,0,0)
+acToggle.Parent = acFrame
+
+local toolSelect = Instance.new("TextButton")
+toolSelect.Size = UDim2.new(0,150,0,40)
+toolSelect.Position = UDim2.new(0.5, -75, 0, 70)
+toolSelect.BackgroundColor3 = Color3.fromRGB(0,0,0)
+toolSelect.BorderColor3 = Color3.fromRGB(255,0,0)
+toolSelect.Text = "Rainbowrath Sword"
+toolSelect.TextColor3 = Color3.fromRGB(255,0,0)
+toolSelect.Parent = acFrame
+
+local toolsList = {"Rainbowrath Sword","Splatter Slap"}
+local currentTool = 1
+toolSelect.MouseButton1Click:Connect(function()
+    currentTool = currentTool % #toolsList + 1
+    toolSelect.Text = toolsList[currentTool]
+end)
+
+local autoClickActive = false
+acToggle.MouseButton1Click:Connect(function()
+    autoClickActive = not autoClickActive
+    acToggle.Text = autoClickActive and "ON" or "OFF"
+    acToggle.TextColor3 = autoClickActive and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+createButton("AutoClick Monitor", 9, function()
+    acFrame.Visible = not acFrame.Visible
+end)
+
+-- دائرة نطاق 18 ستودز برينبو
+local rangePart = Instance.new("Part")
+rangePart.Shape = Enum.PartType.Ball
+rangePart.Size = Vector3.new(36,36,36)
+rangePart.Transparency = 0.7
+rangePart.Anchored = true
+rangePart.CanCollide = false
+rangePart.Material = Enum.Material.Neon
+local surfaceGui = Instance.new("SurfaceGui", rangePart)
+local gradFrame = Instance.new("Frame", surfaceGui)
+gradFrame.Size = UDim2.new(1,0,1,0)
+local grad = Instance.new("UIGradient")
+grad.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,0))
+}
+grad.Parent = gradFrame
+rangePart.Parent = workspace
+task.spawn(function()
+    while task.wait(0.05) do
+        grad.Rotation = (grad.Rotation + 3) % 360
+    end
+end)
+
+-- متابعة النطاق
+runService.Heartbeat:Connect(function()
+    if autoClickActive and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+        rangePart.Position = hrp.Position
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local dist = (plr.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+                if dist <= 18 then
+                    player.Character.Humanoid:MoveTo(plr.Character.HumanoidRootPart.Position)
+                    if dist <= 5 then
+                        local tool = player.Backpack:FindFirstChild(toolsList[currentTool]) or player.Character:FindFirstChild(toolsList[currentTool])
+                        if tool then
+                            player.Character.Humanoid:EquipTool(tool)
+                            if tool.Activate then tool:Activate() end
+                        end
+                    end
+                end
+            end
+        end
+    else
+        rangePart.Position = Vector3.new(0,-100,0)
+    end
+end)
