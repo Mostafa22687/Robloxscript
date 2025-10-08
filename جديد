@@ -1,0 +1,686 @@
+-- سكربت ابو الصوف — النسخة النهائية (9 خواص)
+-- ضع هذا LocalScript داخل StarterGui
+-- المؤلف: Luau (إصدار خاص مع خفاء البيسات)
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local UIS = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+
+-- ========== Helpers ==========
+local function playToggleSound(isOpen)
+	local id = isOpen and "rbxassetid://5852470908" or "rbxassetid://2865227271"
+	local s = Instance.new("Sound")
+	s.SoundId = id
+	s.Parent = Workspace
+	s:Play()
+	s.Ended:Connect(function() pcall(function() s:Destroy() end) end)
+end
+
+-- ========== ScreenGui ==========
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AbuSoof_AllInOne"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- ========== Toggle Button ==========
+local toggleHolder = Instance.new("Frame")
+toggleHolder.Name = "ToggleHolder"
+toggleHolder.Size = UDim2.new(0,72,0,72)
+toggleHolder.Position = UDim2.new(0,10,0,10)
+toggleHolder.BackgroundTransparency = 1
+toggleHolder.Parent = screenGui
+toggleHolder.ZIndex = 10
+
+local ring = Instance.new("Frame")
+ring.Name = "Ring"
+ring.Size = UDim2.new(1,0,1,0)
+ring.BackgroundColor3 = Color3.fromRGB(0,0,0)
+ring.Parent = toggleHolder
+Instance.new("UICorner", ring).CornerRadius = UDim.new(1,0)
+
+local ringGradient = Instance.new("UIGradient", ring)
+ringGradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,0))
+}
+task.spawn(function()
+	while task.wait(0.04) do
+		ringGradient.Rotation = (ringGradient.Rotation + 3) % 360
+	end
+end)
+
+local toggleButton = Instance.new("ImageButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Size = UDim2.new(0.86,0,0.86,0)
+toggleButton.Position = UDim2.new(0.07,0,0.07,0)
+toggleButton.Image = "rbxassetid://72719205179018"
+toggleButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+toggleButton.BorderSizePixel = 0
+toggleButton.Parent = toggleHolder
+Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(1,0)
+
+-- قابل للسحب
+do
+	local dragging, dragInput, dragStart, startPos
+	toggleHolder.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = toggleHolder.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then dragging = false end
+			end)
+		end
+	end)
+	toggleHolder.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+	UIS.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			toggleHolder.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+end
+
+-- ========== Main Frame ==========
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0,0,0,0)
+mainFrame.Position = UDim2.new(0.5,-175,0.5,-175)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0,12)
+local mainStroke = Instance.new("UIStroke", mainFrame)
+mainStroke.Thickness = 2
+mainStroke.Color = Color3.fromRGB(255,0,0)
+
+-- Header
+local header = Instance.new("Frame", mainFrame)
+header.Size = UDim2.new(1,0,0,70)
+header.BackgroundColor3 = Color3.fromRGB(25,25,25)
+Instance.new("UICorner", header).CornerRadius = UDim.new(0,12)
+
+local avatar = Instance.new("ImageLabel", header)
+avatar.Size = UDim2.new(0,50,0,50)
+avatar.Position = UDim2.new(0,10,0.5,-25)
+avatar.BackgroundTransparency = 1
+local thumb = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+avatar.Image = thumb
+
+local playerName = Instance.new("TextLabel", header)
+playerName.Size = UDim2.new(0,120,0,30)
+playerName.Position = UDim2.new(0,70,0.5,-15)
+playerName.BackgroundTransparency = 1
+playerName.Text = player.Name
+playerName.TextColor3 = Color3.fromRGB(255,255,255)
+playerName.Font = Enum.Font.GothamBold
+playerName.TextSize = 16
+playerName.TextXAlignment = Enum.TextXAlignment.Left
+
+local scriptTitle = Instance.new("TextLabel", header)
+scriptTitle.Size = UDim2.new(0,150,0,30)
+scriptTitle.Position = UDim2.new(1,-160,0.5,-15)
+scriptTitle.BackgroundTransparency = 1
+scriptTitle.Text = "سكربت ابو الصوف"
+scriptTitle.TextColor3 = Color3.fromRGB(255,0,0)
+scriptTitle.Font = Enum.Font.GothamBold
+scriptTitle.TextSize = 18
+
+local scrollFrame = Instance.new("ScrollingFrame", mainFrame)
+scrollFrame.Size = UDim2.new(1,-20,1,-80)
+scrollFrame.Position = UDim2.new(0,10,0,80)
+scrollFrame.CanvasSize = UDim2.new(0,0,0,0)
+scrollFrame.ScrollBarThickness = 6
+scrollFrame.BackgroundTransparency = 1
+
+local grid = Instance.new("UIGridLayout", scrollFrame)
+grid.CellSize = UDim2.new(0,100,0,40)
+grid.CellPadding = UDim2.new(0,10,0,10)
+grid.FillDirectionMaxCells = 3
+grid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	scrollFrame.CanvasSize = UDim2.new(0,0,0, grid.AbsoluteContentSize.Y + 10)
+end)
+
+local function createButton(text)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0,100,0,40)
+	btn.Text = text
+	btn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	btn.TextColor3 = Color3.fromRGB(255,255,255)
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 14
+	btn.Parent = scrollFrame
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+	local s = Instance.new("UIStroke", btn)
+	s.Thickness = 1.2
+	s.Color = Color3.fromRGB(255,0,0)
+	return btn
+end
+
+-- فتح/إغلاق القائمة
+toggleButton.MouseButton1Click:Connect(function()
+	if not mainFrame.Visible then
+		mainFrame.Visible = true
+		mainFrame.Size = UDim2.new(0,280,0,280)
+		mainFrame.Position = UDim2.new(0.5,-140,0.5,-140)
+		playToggleSound(true)
+		TweenService:Create(mainFrame, TweenInfo.new(0.32, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0,350,0,350), Position = UDim2.new(0.5,-175,0.5,-175)}):Play()
+	else
+		playToggleSound(false)
+		TweenService:Create(mainFrame, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,0)}):Play()
+		task.delay(0.29, function() mainFrame.Visible = false end)
+	end
+end)
+
+-- جعل mainFrame قابل للسحب
+do
+	local dragging, dragInput, dragStart, startPos
+	mainFrame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = mainFrame.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then dragging = false end
+			end)
+		end
+	end)
+	mainFrame.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+	UIS.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+end
+
+------------------------------------------------------
+-- الخواص السابقة (1 إلى 8) تبقى كما هي تمامًا
+-- (Fly / Speed / Invisible / PlusBlock / ESP / Rejoin / Teleport Server / Auto Steal)
+-- -----------------------------------------------------
+-- 1) Fly
+local flyEnabled = false
+local lastFly = 0
+local flyBtn = createButton("Fly: OFF")
+flyBtn.MouseButton1Click:Connect(function()
+    flyEnabled = not flyEnabled
+    flyBtn.Text = flyEnabled and "Fly: ON" or "Fly: OFF"
+end)
+UIS.JumpRequest:Connect(function()
+    if flyEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+        if tick() - lastFly >= 0.5 then
+            local hum = player.Character.Humanoid
+            pcall(function()
+                hum.UseJumpPower = true
+                hum.JumpPower = 80
+                hum.Jump = true
+                hum:ChangeState(Enum.HumanoidStateType.Jumping)
+            end)
+            lastFly = tick()
+        end
+    end
+end)
+
+-- 2) Speed
+local speedEnabled = false
+local speedBtn = createButton("Speed: OFF")
+speedBtn.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    speedBtn.Text = speedEnabled and "Speed: ON" or "Speed: OFF"
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.WalkSpeed = speedEnabled and 24 or 16
+    end
+end)
+player.CharacterAdded:Connect(function(char)
+    task.wait(0.1)
+    if speedEnabled and char:FindFirstChild("Humanoid") then
+        char.Humanoid.WalkSpeed = 24
+    end
+end)
+
+-- 3) Invisible
+local invisibleEnabled = false
+local invisBtn = createButton("Invisible: OFF")
+invisBtn.MouseButton1Click:Connect(function()
+    invisibleEnabled = not invisibleEnabled
+    invisBtn.Text = invisibleEnabled and "Invisible: ON" or "Invisible: OFF"
+    if player.Character then
+        for _, part in pairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                pcall(function() part.Transparency = invisibleEnabled and 1 or 0 end)
+            end
+            if part:IsA("Decal") or part:IsA("Texture") then
+                pcall(function() part.Transparency = invisibleEnabled and 1 or 0 end)
+            end
+        end
+    end
+end)
+player.CharacterAdded:Connect(function(char)
+    task.wait(0.1)
+    if invisibleEnabled then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                pcall(function() part.Transparency = 1 end)
+            end
+            if part:IsA("Decal") or part:IsA("Texture") then
+                pcall(function() part.Transparency = 1 end)
+            end
+        end
+    end
+end)
+
+-- 4) Plus Block
+local plusActive = false
+local plusPart = nil
+local plusBtn = createButton("Plus Block: OFF")
+plusBtn.MouseButton1Click:Connect(function()
+    plusActive = not plusActive
+    plusBtn.Text = plusActive and "Plus Block: ON" or "Plus Block: OFF"
+    if not plusActive and plusPart then
+        pcall(function() plusPart:Destroy() end)
+        plusPart = nil
+    end
+end)
+RunService.RenderStepped:Connect(function()
+    if plusActive then
+        if not plusPart then
+            plusPart = Instance.new("Part")
+            plusPart.Name = "AIO_PlusBlock"
+            plusPart.Size = Vector3.new(6,1,6)
+            plusPart.Anchored = true
+            plusPart.Material = Enum.Material.Neon
+            plusPart.Color = Color3.fromRGB(255,0,0)
+            plusPart.CanCollide = true
+            plusPart.Parent = Workspace
+        end
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = player.Character.HumanoidRootPart
+            plusPart.Position = hrp.Position - Vector3.new(0, hrp.Size.Y/2 + 2.5, 0)
+        end
+    end
+end)
+
+-- 5) ESP
+local espEnabled = false
+local espBtn = createButton("ESP: OFF")
+local highlights = {}
+local nameGuis = {}
+
+local function makeNameGuiFor(plr)
+    if not plr.Character then return end
+    local head = plr.Character:FindFirstChild("Head")
+    if not head then return end
+    if nameGuis[plr] and nameGuis[plr].gui and nameGuis[plr].gui.Parent then return end
+
+    local bg = Instance.new("BillboardGui")
+    bg.Name = "AIO_NameGui"
+    bg.Adornee = head
+    bg.Size = UDim2.new(0,120,0,30)
+    bg.StudsOffset = Vector3.new(0, 2.6, 0)
+    bg.AlwaysOnTop = true
+    bg.Parent = head
+
+    local txt = Instance.new("TextLabel", bg)
+    txt.Size = UDim2.new(1,0,1,0)
+    txt.BackgroundTransparency = 1
+    txt.Text = plr.Name
+    txt.Font = Enum.Font.GothamBold
+    txt.TextScaled = true
+    txt.TextColor3 = Color3.fromRGB(255,0,0)
+
+    nameGuis[plr] = { gui = bg, label = txt }
+end
+
+local function makeHighlightFor(plr)
+    if not plr.Character then return end
+    if highlights[plr] and highlights[plr].Parent then return end
+    local hl = Instance.new("Highlight")
+    hl.Name = "AIO_Highlight"
+    hl.Adornee = plr.Character
+    hl.Parent = Workspace
+    hl.FillTransparency = 0.6
+    hl.OutlineTransparency = 0
+    highlights[plr] = hl
+end
+
+local function removeESPFor(plr)
+    if highlights[plr] then pcall(function() highlights[plr]:Destroy() end) highlights[plr] = nil end
+    if nameGuis[plr] then pcall(function() nameGuis[plr].gui:Destroy() end) nameGuis[plr] = nil end
+end
+
+espBtn.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    espBtn.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+    if espEnabled then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= player then
+                plr.CharacterAdded:Connect(function() task.wait(0.2); makeHighlightFor(plr); makeNameGuiFor(plr) end)
+                makeHighlightFor(plr)
+                makeNameGuiFor(plr)
+            end
+        end
+    else
+        for plr,_ in pairs(highlights) do removeESPFor(plr) end
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if espEnabled then
+        local t = tick()
+        for plr, hl in pairs(highlights) do
+            if plr and plr.Character and hl and hl.Parent then
+                local v = (math.sin(t * 1.6 + (plr.UserId % 10) * 0.2) + 1)/2
+                local col = Color3.new(v, 0, 0)
+                pcall(function()
+                    hl.FillColor = col
+                    hl.OutlineColor = col
+                end)
+            else
+                if plr and plr.Character then
+                    makeHighlightFor(plr)
+                else
+                    removeESPFor(plr)
+                end
+            end
+        end
+        for plr, info in pairs(nameGuis) do
+            if info and info.label then
+                local v = (math.sin(t * 1.6 + (plr.UserId % 10) * 0.2 + 0.5) + 1)/2
+                pcall(function() info.label.TextColor3 = Color3.new(v,0,0) end)
+            end
+        end
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(plr) removeESPFor(plr) end)
+Players.PlayerAdded:Connect(function(plr)
+    if espEnabled and plr ~= player then
+        plr.CharacterAdded:Connect(function() task.wait(0.2); makeHighlightFor(plr); makeNameGuiFor(plr) end)
+    end
+end)
+
+-- 6) Rejoin
+local rejoinBtn = createButton("Rejoin")
+rejoinBtn.MouseButton1Click:Connect(function()
+    pcall(function() TeleportService:Teleport(game.PlaceId, player) end)
+end)
+
+-- 7) Teleport Server
+local teleportBtn = createButton("Teleport Server")
+teleportBtn.MouseButton1Click:Connect(function()
+    local servers = {}
+    local ok, data = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
+    end)
+    if ok and data and data.data then
+        for _, v in pairs(data.data) do
+            if v.id ~= game.JobId and v.playing < v.maxPlayers then
+                table.insert(servers, v.id)
+            end
+        end
+    end
+    if #servers > 0 then
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1,#servers)], player)
+    end
+end)
+
+-- ========== Auto Steal — النسخة المصغّرة المصححة ==========
+local autoStealBtn = createButton("Auto Steal")
+local autoGui = Instance.new("Frame", screenGui)
+-- جعلها أصغر من السابق
+autoGui.Size = UDim2.new(0, 250, 0, 140)
+autoGui.Position = UDim2.new(0.5, -125, 0.5, -70)
+autoGui.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+autoGui.BorderColor3 = Color3.fromRGB(255, 0, 0)
+autoGui.Visible = false
+Instance.new("UICorner", autoGui).CornerRadius = UDim.new(0, 8)
+
+-- عنوان النافذة
+local autoTitle = Instance.new("TextLabel", autoGui)
+autoTitle.Size = UDim2.new(1, 0, 0, 30)
+autoTitle.Position = UDim2.new(0, 0, 0, 5)
+autoTitle.BackgroundTransparency = 1
+autoTitle.Text = "Auto Steal"
+autoTitle.TextColor3 = Color3.fromRGB(255, 0, 0)
+autoTitle.Font = Enum.Font.GothamBold
+autoTitle.TextScaled = true
+
+-- نص الحالة (أصغر منصّف)
+local statusLabel = Instance.new("TextLabel", autoGui)
+statusLabel.Size = UDim2.new(1, 0, 0, 20)
+statusLabel.Position = UDim2.new(0, 0, 1, -25)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "اضغط لحفظ الموقع الأول"
+statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.SourceSans
+
+-- زر الحفظ/تشغيل
+local autoSaveBtn = Instance.new("TextButton", autoGui)
+autoSaveBtn.Size = UDim2.new(0, 140, 0, 35)
+autoSaveBtn.Position = UDim2.new(0.5, -70, 0.5, -17)
+autoSaveBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+autoSaveBtn.BorderColor3 = Color3.fromRGB(255, 0, 0)
+autoSaveBtn.Text = "احفظ الموقع"
+autoSaveBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
+autoSaveBtn.Font = Enum.Font.GothamBold
+autoSaveBtn.TextScaled = true
+Instance.new("UICorner", autoSaveBtn).CornerRadius = UDim.new(0, 6)
+
+-- متغيرات Auto Steal
+local savedPositions = {}
+local autoStealRunning = false
+local lastJumpTime = 0
+local autoStealConn
+
+local function startAutoSteal()
+    if #savedPositions < 2 then return end
+    autoStealRunning = true
+    statusLabel.Text = "قيد التشغيل..."
+    local idx = 1
+    autoStealConn = RunService.RenderStepped:Connect(function()
+        if not autoStealRunning then return end
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+            local hrp = char.HumanoidRootPart
+            local hum = char.Humanoid
+            hum:MoveTo(savedPositions[idx])
+            if tick() - lastJumpTime >= 1 then
+                hum:ChangeState(Enum.HumanoidStateType.Jumping)
+                lastJumpTime = tick()
+            end
+            if (hrp.Position - savedPositions[idx]).Magnitude < 4 then
+                idx += 1
+                if idx > #savedPositions then
+                    autoStealRunning = false
+                    statusLabel.Text = "تم الوصول!"
+                    if autoStealConn then autoStealConn:Disconnect() autoStealConn = nil end
+                end
+            end
+        end
+    end)
+end
+
+autoSaveBtn.MouseButton1Click:Connect(function()
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+    local pos = player.Character.HumanoidRootPart.Position
+    if #savedPositions == 0 then
+        table.insert(savedPositions, pos)
+        autoSaveBtn.Text = "احفظ الموقع الثاني"
+        statusLabel.Text = "تم حفظ الأول"
+    elseif #savedPositions == 1 then
+        table.insert(savedPositions, pos)
+        autoSaveBtn.Text = "ابدأ التشغيل"
+        statusLabel.Text = "تم حفظ الثاني"
+    else
+        startAutoSteal()
+    end
+end)
+
+-- جعل النافذة قابلة للسحب
+do
+    local dragging, dragInput, dragStart, startPos
+    autoGui.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = autoGui.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    autoGui.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            autoGui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+-- زر القائمة لفتح/إغلاق نافذة Auto Steal
+autoStealBtn.MouseButton1Click:Connect(function()
+    autoGui.Visible = not autoGui.Visible
+    playToggleSound(autoGui.Visible)
+end)
+
+-- النهاية
+-- (ضع هنا الكود الكامل السابق حتى نهاية Auto Steal دون حذف أي سطر)
+-- ثم بعده أضف التالي:
+
+------------------------------------------------------
+-- 9) Base Transparency (خفاء البيسات)
+------------------------------------------------------
+
+local baseTransBtn = createButton("Base Transparency")
+baseTransBtn.MouseButton1Click:Connect(function()
+	local CoreGui = game:GetService("CoreGui")
+
+	if CoreGui:FindFirstChild("FullBaseTransparencyGUI") then
+		local gui = CoreGui.FullBaseTransparencyGUI
+		gui.Enabled = not gui.Enabled
+		playToggleSound(gui.Enabled)
+		return
+	end
+
+	-- تشغيل خفاء البيسات
+	local Workspace = game:GetService("Workspace")
+	local TRANSPARENCY_VALUE = 0.6
+	local DISABLE_COLLISION = false
+	local KEYWORDS = {"base","platform","pad","floor","ground","plot","stand","bunker"}
+
+	local function nameMatches(name)
+		name = tostring(name):lower()
+		if string.find(name, "brainrot") then return false end
+		for _, w in ipairs(KEYWORDS) do
+			if string.find(name, w) then return true end
+		end
+		return false
+	end
+
+	local originalStates = {}
+	local function applyTransparencyToContainer(container, enable)
+		for _, obj in pairs(container:GetDescendants()) do
+			if obj:IsA("BasePart") and nameMatches(obj.Name) then
+				if enable then
+					if not originalStates[obj] then
+						originalStates[obj] = {Transparency = obj.Transparency, CanCollide = obj.CanCollide}
+					end
+					obj.Transparency = TRANSPARENCY_VALUE
+					if DISABLE_COLLISION then obj.CanCollide = false end
+				else
+					if originalStates[obj] then
+						obj.Transparency = originalStates[obj].Transparency
+						obj.CanCollide = originalStates[obj].CanCollide
+						originalStates[obj] = nil
+					end
+				end
+			end
+		end
+	end
+
+	local function processAll(enable)
+		for _, obj in pairs(Workspace:GetDescendants()) do
+			if obj:IsA("Model") then
+				for _, p in pairs(obj:GetDescendants()) do
+					if p:IsA("BasePart") and nameMatches(p.Name) then
+						applyTransparencyToContainer(obj, enable)
+						break
+					end
+				end
+			elseif obj:IsA("BasePart") and nameMatches(obj.Name) then
+				applyTransparencyToContainer(obj, enable)
+			end
+		end
+	end
+
+	if CoreGui:FindFirstChild("FullBaseTransparencyGUI") then
+		CoreGui.FullBaseTransparencyGUI:Destroy()
+	end
+
+	local gui = Instance.new("ScreenGui", CoreGui)
+	gui.Name = "FullBaseTransparencyGUI"
+	gui.ResetOnSpawn = false
+
+	local frame = Instance.new("Frame", gui)
+	frame.Size = UDim2.new(0, 220, 0, 90)
+	frame.Position = UDim2.new(0.02, 0, 0.8, -50)
+	frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+	frame.BackgroundTransparency = 0.2
+	frame.BorderSizePixel = 0
+	frame.Active = true
+	frame.Draggable = true
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
+
+	local title = Instance.new("TextLabel", frame)
+	title.Size = UDim2.new(1, -16, 0, 28)
+	title.Position = UDim2.new(0,8,0,6)
+	title.BackgroundTransparency = 1
+	title.Text = "خفاء البيسات"
+	title.TextColor3 = Color3.fromRGB(255,255,255)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 16
+	title.TextXAlignment = Enum.TextXAlignment.Left
+
+	local toggleBtn = Instance.new("TextButton", frame)
+	toggleBtn.Size = UDim2.new(0.9,0,0,40)
+	toggleBtn.Position = UDim2.new(0.05,0,0,38)
+	toggleBtn.BackgroundColor3 = Color3.fromRGB(200,40,40)
+	toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+	toggleBtn.Font = Enum.Font.GothamBold
+	toggleBtn.Text = "تشغيل الشفافية ❌"
+	Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0,8)
+
+	local active = false
+	toggleBtn.MouseButton1Click:Connect(function()
+		active = not active
+		if active then
+			processAll(true)
+			toggleBtn.BackgroundColor3 = Color3.fromRGB(30,200,30)
+			toggleBtn.Text = "إيقاف الشفافية ✅"
+		else
+			processAll(false)
+			toggleBtn.BackgroundColor3 = Color3.fromRGB(200,40,40)
+			toggleBtn.Text = "تشغيل الشفافية ❌"
+		end
+	end)
+end)
