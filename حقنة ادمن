@@ -1,0 +1,121 @@
+--[[
+============================================================
+ABO_ALSOF - OWNER EMULATION PROTOCOL (SERVER BYPASS ATTEMPT)
+Mode: Executor Injectable (Focus on Admin/Owner Remote Spoofing)
+Target: Disable Server Validation Checks / Force Admin Status
+============================================================
+--]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
+-- Global variable to hold discovered admin/owner validation remotes
+local ValidationRemotes = {}
+local AdminRemotes = {}
+
+-- Function to search for remotes related to admin/owner checks
+local function findValidationRemotes()
+    local searchTerms = {"ownercheck", "adminverify", "verifyuser", "checkrank", "serverconfirm", "creatorcheck"}
+    local adminTerms = {"executecmd", "runcommand", "admin", "giveadmin", "runscript"}
+
+    for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
+        if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+            local name = string.lower(child.Name)
+            
+            -- 1. Identify Validation/Owner Check Remotes
+            for _, term in ipairs(searchTerms) do
+                if string.match(name, term) then
+                    ValidationRemotes[child] = true
+                    print(string.format("[EMULATION] Found Validation Remote: %s", child.Name))
+                end
+            end
+            
+            -- 2. Identify Admin/Command Execution Remotes
+            for _, term in ipairs(adminTerms) do
+                if string.match(name, term) then
+                    AdminRemotes[child] = true
+                    print(string.format("[EMULATION] Found Admin Remote: %s", child.Name))
+                end
+            end
+        end
+    end
+end
+
+-- Function to actively disable/hijack Validation Remotes
+local function disableValidationChecks()
+    if #ValidationRemotes == 0 then
+        print("[EMULATION] No Server Validation Remotes found to disable.")
+        return
+    end
+
+    for remote, _ in pairs(ValidationRemotes) do
+        -- 1. Disconnect Client-Side Listeners (Prevent data being sent to the server)
+        pcall(function()
+            remote.OnClientEvent:Connect(function()
+                return -- Stop server from receiving responses if it's a RemoteFunction call
+            end)
+        end)
+
+        -- 2. Attempt to Hijack and Return Success (For RemoteFunctions)
+        if remote:IsA("RemoteFunction") then
+            remote.OnClientInvoke = function()
+                -- Always return TRUE or the Player's ID to spoof successful ownership/validation
+                print(string.format("[EMULATION] Hijacked RemoteFunction: %s. Returning TRUE.", remote.Name))
+                return true, LocalPlayer.UserId 
+            end
+        end
+    end
+    print("[EMULATION] Attempted to disable/hijack all detected Validation Remotes.")
+end
+
+-- Function to trigger a high-level admin command (The 'Owner' command)
+local function executeOwnerCommand()
+    local success = false
+    if #AdminRemotes == 0 then
+        print("[EMULATION] No Admin Execution Remotes found. Cannot send command.")
+        return
+    end
+    
+    local OwnerCommandString = "OwnerAccess" -- The command we are trying to send
+
+    for remote, _ in pairs(AdminRemotes) do
+        -- Try different ways to trigger an 'Owner' or 'Max Admin' command
+        
+        -- Attempt 1: Fire a simple string command
+        pcall(function() remote:FireServer(OwnerCommandString) end)
+        
+        -- Attempt 2: Fire the command along with the player's ID (common in admin systems)
+        pcall(function() remote:FireServer(OwnerCommandString, LocalPlayer.UserId) end)
+
+        -- Attempt 3: Try to set the player's rank/level to the max (if structure is exposed)
+        pcall(function() remote:FireServer("SetRank", LocalPlayer.Name, 255) end) -- 255 is often max rank
+
+        print(string.format("[EMULATION] Attempted to fire Owner/Admin commands via: %s", remote.Name))
+        success = true
+    end
+    if success then
+        print("[EMULATION] Owner/Admin command execution attempts completed. Check your status.")
+    end
+end
+
+-- ==========================================================
+-- D. EXECUTION SEQUENCE
+-- ==========================================================
+
+print("=========================================================")
+print("ABO_ALSOF OWNER EMULATION PROTOCOL INITIATED.")
+
+-- Step 1: Discover Remotes
+findValidationRemotes()
+
+-- Step 2: Disable Client-Side Validation Responses
+disableValidationChecks()
+
+-- Wait briefly for any late-loading remotes (important)
+task.wait(1)
+
+-- Step 3: Execute Max Privilege Commands
+executeOwnerCommand()
+
+print("PROTOCOL EXECUTION FINISHED. Server response is now key.")
+print("=========================================================")
