@@ -1,0 +1,468 @@
+--==============================================================--
+--===== 💠 الجزء الأول : تحميل القاعدة الأساسية و تصميم الواجهة =====--
+--==============================================================--
+
+-- خدمات Roblox
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+------------------------------------------------
+-- إنشاء ScreenGui رئيسي
+------------------------------------------------
+local hubGui = Instance.new("ScreenGui")
+hubGui.Name = "InfiniteHub"
+hubGui.ResetOnSpawn = false
+hubGui.Parent = playerGui
+
+------------------------------------------------
+-- الزر الخارجي (فتح / إغلاق القائمة)
+------------------------------------------------
+local openButton = Instance.new("ImageButton")
+openButton.Name = "OpenHub"
+openButton.Size = UDim2.new(0, 60, 0, 60)
+openButton.Position = UDim2.new(0.5, -30, 0.5, -200)
+openButton.AnchorPoint = Vector2.new(0.5, 0.5)
+openButton.BackgroundTransparency = 0.4
+openButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+openButton.Image = ""
+openButton.Parent = hubGui
+
+local openCorner = Instance.new("UICorner", openButton)
+openCorner.CornerRadius = UDim.new(1, 0)
+
+local openLabel = Instance.new("TextLabel")
+openLabel.Size = UDim2.new(1, 0, 1, 0)
+openLabel.BackgroundTransparency = 1
+openLabel.Text = "⚙️"
+openLabel.TextColor3 = Color3.fromRGB(255,255,255)
+openLabel.TextScaled = true
+openLabel.Parent = openButton
+
+------------------------------------------------
+-- سحب الزر الخارجي
+------------------------------------------------
+local dragging, dragStart, startPos
+local function updateDrag(input)
+	local delta = input.Position - dragStart
+	openButton.Position = UDim2.new(
+		startPos.X.Scale, startPos.X.Offset + delta.X,
+		startPos.Y.Scale, startPos.Y.Offset + delta.Y
+	)
+end
+
+openButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = openButton.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		updateDrag(input)
+	end
+end)
+
+------------------------------------------------
+-- الإطار الرئيسي للقائمة (في منتصف الشاشة)
+------------------------------------------------
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 400, 0, 0)
+mainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mainFrame.BackgroundTransparency = 0.15
+mainFrame.Visible = false
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = hubGui
+
+local mainCorner = Instance.new("UICorner", mainFrame)
+mainCorner.CornerRadius = UDim.new(0, 10)
+
+local mainStroke = Instance.new("UIStroke", mainFrame)
+mainStroke.Thickness = 2
+mainStroke.Color = Color3.fromRGB(255,0,0)
+
+------------------------------------------------
+-- الأزرار العلوية (Tabs)
+------------------------------------------------
+local tabsFrame = Instance.new("Frame")
+tabsFrame.Name = "Tabs"
+tabsFrame.Size = UDim2.new(1, 0, 0, 40)
+tabsFrame.BackgroundTransparency = 1
+tabsFrame.Parent = mainFrame
+
+local tabsLayout = Instance.new("UIListLayout", tabsFrame)
+tabsLayout.FillDirection = Enum.FillDirection.Horizontal
+tabsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+tabsLayout.Padding = UDim.new(0, 10)
+
+local sections = {"Settings", "Power", "Teleport", "ESP"}
+local sectionFrames = {}
+local currentSection = "Settings"
+
+local function switchSection(section)
+	for name, frame in pairs(sectionFrames) do
+		frame.Visible = (name == section)
+	end
+	currentSection = section
+end
+
+for _, name in ipairs(sections) do
+	local tab = Instance.new("TextButton")
+	tab.Name = name.."Tab"
+	tab.Text = name
+	tab.Size = UDim2.new(0, 80, 0, 30)
+	tab.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+	tab.TextColor3 = Color3.fromRGB(255, 255, 255)
+	tab.Font = Enum.Font.GothamBold
+	tab.TextSize = 14
+	tab.Parent = tabsFrame
+
+	local tabCorner = Instance.new("UICorner", tab)
+	tabCorner.CornerRadius = UDim.new(0, 6)
+
+	tab.MouseButton1Click:Connect(function()
+		switchSection(name)
+	end)
+end
+
+------------------------------------------------
+-- إنشاء الإطارات الداخلية لكل قسم
+------------------------------------------------
+for _, name in ipairs(sections) do
+	local frame = Instance.new("Frame")
+	frame.Name = name.."Frame"
+	frame.Size = UDim2.new(1, -20, 1, -60)
+	frame.Position = UDim2.new(0, 10, 0, 50)
+	frame.BackgroundTransparency = 1
+	frame.Visible = (name == "Settings")
+	frame.Parent = mainFrame
+
+	local layout = Instance.new("UIListLayout", frame)
+	layout.Padding = UDim.new(0, 6)
+	layout.FillDirection = Enum.FillDirection.Vertical
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+	sectionFrames[name] = frame
+end
+
+------------------------------------------------
+-- أنميشن فتح / إغلاق القائمة
+------------------------------------------------
+local openTween = TweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0,400,0,300)})
+local closeTween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0,400,0,0)})
+
+openButton.MouseButton1Click:Connect(function()
+	if mainFrame.Visible then
+		closeTween:Play()
+		task.delay(0.3, function() mainFrame.Visible = false end)
+	else
+		mainFrame.Visible = true
+		openTween:Play()
+	end
+end)
+
+------------------------------------------------
+-- دالة إنشاء زر ميزة (للاستخدام في الجزء الثاني)
+------------------------------------------------
+function AddFeature(featureName, sectionName, onClick)
+	local target = sectionFrames[sectionName]
+	if not target then warn("⚠️ قسم غير موجود:", sectionName) return end
+
+	local btn = Instance.new("TextButton")
+	btn.Name = featureName.."Button"
+	btn.Size = UDim2.new(0, 320, 0, 35)
+	btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	btn.TextColor3 = Color3.fromRGB(255,255,255)
+	btn.Font = Enum.Font.GothamSemibold
+	btn.Text = featureName
+	btn.TextSize = 14
+	btn.Parent = target
+
+	local bCorner = Instance.new("UICorner", btn)
+	bCorner.CornerRadius = UDim.new(0, 6)
+
+	local bStroke = Instance.new("UIStroke", btn)
+	bStroke.Thickness = 1
+	bStroke.Color = Color3.fromRGB(255,0,0)
+
+	btn.MouseButton1Click:Connect(onClick)
+end
+
+
+--==============================================================--
+--===== ⚙️ الجزء الثاني : قاعدة الأزرار و مساحة الخواص (SpaceButton) =====--
+--==============================================================--
+
+-- ✳️ هنا المساحة المفتوحة لإضافة الأزرار والمميزات يدويًا
+-- استخدم AddFeature("اسم الميزة", "اسم القسم", function() ... end)
+
+-- مثال توضيحي (زر تجريبي):
+-- AddFeature("Test Feature", "Settings", function()
+--     print("تم الضغط على زر تجريبي ✅")
+-- end)
+
+-- خاصية القفز العالي (Jump Boost)
+local jumpEnabled = false
+local normalJump = 50
+local boostJump = 120
+
+AddFeature("القفز العالي", "Power", function()
+
+    jumpEnabled = not jumpEnabled
+    local char = player.Character or player.CharacterAdded:Wait()
+    local hum = char:FindFirstChildOfClass("Humanoid")
+
+    if hum then
+        if jumpEnabled then
+            hum.UseJumpPower = true
+            hum.JumpPower = boostJump
+
+            -- تحديث شكل الزر
+            local btn = sectionFrames["Power"]:FindFirstChild("القفز العاليButton")
+            if btn then
+                btn.BackgroundColor3 = Color3.fromRGB(0, 160, 0)
+                btn.Text = "القفز العالي: ON"
+            end
+        else
+            hum.JumpPower = normalJump
+
+            -- تحديث شكل الزر
+            local btn = sectionFrames["Power"]:FindFirstChild("القفز العاليButton")
+            if btn then
+                btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+                btn.Text = "القفز العالي: OFF"
+            end
+        end
+    end
+end)
+
+-- زر ESP Player
+local _espEnabled = false
+local espObjects = {}
+
+AddFeature("ESP Players", "ESP", function()
+    _espEnabled = not _espEnabled
+
+    -- تحديث نص الزر
+    local parentFrame = sectionFrames["ESP"]
+    if parentFrame then
+        local myBtn = parentFrame:FindFirstChild("ESP PlayersButton")
+        if myBtn and myBtn:IsA("TextButton") then
+            myBtn.Text = _espEnabled and "ESP Players: ON" or "ESP Players: OFF"
+            myBtn.BackgroundColor3 = _espEnabled and Color3.fromRGB(0,160,0) or Color3.fromRGB(30,30,30)
+        end
+    end
+
+    if _espEnabled then
+        -- تفعيل ESP لكل اللاعبين
+        for _, plr in pairs(game:GetService("Players"):GetPlayers()) do
+            if plr ~= game.Players.LocalPlayer and plr.Character then
+                local head = plr.Character:FindFirstChild("Head")
+                if head then
+                    local billboard = Instance.new("BillboardGui")
+                    billboard.Name = "ESP"
+                    billboard.AlwaysOnTop = true
+                    billboard.Size = UDim2.new(0, 100, 0, 20)
+                    billboard.Adornee = head
+
+                    local label = Instance.new("TextLabel", billboard)
+                    label.Size = UDim2.new(1, 0, 1, 0)
+                    label.BackgroundTransparency = 1
+                    label.Text = plr.Name
+                    label.TextColor3 = Color3.fromRGB(255, 50, 50)
+                    label.TextStrokeTransparency = 0.5
+                    label.Font = Enum.Font.GothamBold
+                    label.TextScaled = true
+
+                    billboard.Parent = head
+                    espObjects[plr] = billboard
+                end
+            end
+        end
+
+        -- إذا دخل لاعب جديد أثناء التفعيل
+        game:GetService("Players").PlayerAdded:Connect(function(newPlr)
+            newPlr.CharacterAdded:Connect(function(char)
+                if _espEnabled then
+                    task.wait(1)
+                    local head = char:WaitForChild("Head")
+                    local billboard = Instance.new("BillboardGui")
+                    billboard.Name = "ESP"
+                    billboard.AlwaysOnTop = true
+                    billboard.Size = UDim2.new(0, 100, 0, 20)
+                    billboard.Adornee = head
+
+                    local label = Instance.new("TextLabel", billboard)
+                    label.Size = UDim2.new(1, 0, 1, 0)
+                    label.BackgroundTransparency = 1
+                    label.Text = newPlr.Name
+                    label.TextColor3 = Color3.fromRGB(255, 50, 50)
+                    label.TextStrokeTransparency = 0.5
+                    label.Font = Enum.Font.GothamBold
+                    label.TextScaled = true
+
+                    billboard.Parent = head
+                    espObjects[newPlr] = billboard
+                end
+            end)
+        end)
+
+    else
+        -- تعطيل ESP وإزالة جميع الوسوم
+        for plr, gui in pairs(espObjects) do
+            if gui and gui.Parent then
+                gui:Destroy()
+            end
+        end
+        espObjects = {}
+    end
+end)
+
+-- زر Unkill (ضعه داخل قاعدة المميزات حيث تستخدم AddFeature)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- حالة زر Unkill (محلية)
+local _unkillEnabled = false
+
+AddFeature("Unkill", "Settings", function()
+    -- toggle الحالة
+    _unkillEnabled = not _unkillEnabled
+
+    -- تحديث مظهر الزر (يعثر على الزر المنشأ بنفس اسم النمط)
+    local parentFrame = sectionFrames["Settings"]
+    if parentFrame then
+        local myBtn = parentFrame:FindFirstChild("UnkillButton")
+        if myBtn and myBtn:IsA("TextButton") then
+            myBtn.Text = _unkillEnabled and "Unkill: ON" or "Unkill: OFF"
+            if _unkillEnabled then
+                myBtn.BackgroundColor3 = Color3.fromRGB(0,160,0) -- أخضر عند التشغيل
+            else
+                myBtn.BackgroundColor3 = Color3.fromRGB(30,30,30) -- رمادي عند الإيقاف
+            end
+        end
+    end
+
+    -- محاولة إيجاد RemoteEvent اسم "unkill"
+    local rem = ReplicatedStorage:FindFirstChild("unkill")
+    if rem and rem:IsA("RemoteEvent") then
+        -- إذا موجود على الـ ReplicatedStorage (عادة من جانب السيرفر) نطلقه
+        pcall(function()
+            rem:FireServer({ Command = "BlockDeathRemotes", Enable = _unkillEnabled })
+        end)
+    else
+        -- إن لم يوجد: ننشئ RemoteEvent محلي (لن يصل للسيرفر) ثم نطلقة كإجراء احترازي — نُعلم المستخدم عبر طباعة
+        local created = Instance.new("RemoteEvent")
+        created.Name = "unkill"
+        created.Parent = ReplicatedStorage -- ملاحظة: إنشاءه من العميل لن يخلقه على السيرفر
+        pcall(function()
+            created:FireServer({ Command = "BlockDeathRemotes", Enable = _unkillEnabled })
+        end)
+        warn("[Unkill] RemoteEvent 'unkill' غير موجود على السيرفر. تم إنشاء نسخة محلية فقط — لكي تعمل منع الموت يجب أن يكون على السيرفر RemoteEvent/Handler يدعم 'BlockDeathRemotes'.")
+    end
+end)
+
+-- خاصية Teleport Menu
+local TeleportSpots = {
+    ["Spawn"] = Vector3.new(0, 5, 0),       -- غير الإحداثيات حسب الماب
+    ["Shop"] = Vector3.new(120, 5, 60),
+    ["Arena"] = Vector3.new(-80, 10, -50)
+}
+
+AddFeature("فتح قائمة الانتقال", "Teleport", function()
+    -- إنشاء نافذة صغيرة فيها أزرار المواقع
+    local screenGui = playerGui:FindFirstChild("TeleportMenu")
+    if screenGui then screenGui:Destroy() end
+
+    local teleGui = Instance.new("ScreenGui")
+    teleGui.Name = "TeleportMenu"
+    teleGui.ResetOnSpawn = false
+    teleGui.Parent = playerGui
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 250, 0, 200)
+    frame.Position = UDim2.new(0.5, -125, 0.5, -100)
+    frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+    frame.Parent = teleGui
+    frame.Active = true
+    frame.Draggable = true
+
+    local corner = Instance.new("UICorner", frame)
+    corner.CornerRadius = UDim.new(0, 8)
+
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Color = Color3.fromRGB(255,0,0)
+    stroke.Thickness = 1.5
+
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.BackgroundTransparency = 1
+    title.Text = "📍 قائمة الانتقال"
+    title.TextColor3 = Color3.fromRGB(255,255,255)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 16
+
+    local layout = Instance.new("UIListLayout", frame)
+    layout.Padding = UDim.new(0, 5)
+    layout.FillDirection = Enum.FillDirection.Vertical
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    -- إنشاء الأزرار
+    for name, pos in pairs(TeleportSpots) do
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, 200, 0, 30)
+        btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+        btn.TextColor3 = Color3.fromRGB(255,255,255)
+        btn.Text = "↦ " .. name
+        btn.Font = Enum.Font.GothamSemibold
+        btn.TextSize = 14
+        btn.Parent = frame
+
+        local bcorner = Instance.new("UICorner", btn)
+        bcorner.CornerRadius = UDim.new(0, 6)
+
+        local bstroke = Instance.new("UIStroke", btn)
+        bstroke.Color = Color3.fromRGB(255,0,0)
+
+        btn.MouseButton1Click:Connect(function()
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character.HumanoidRootPart.CFrame = CFrame.new(pos)
+            end
+        end)
+    end
+
+    -- زر إغلاق
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 200, 0, 30)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(60,0,0)
+    closeBtn.Text = "❌ إغلاق"
+    closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    closeBtn.Font = Enum.Font.GothamSemibold
+    closeBtn.TextSize = 14
+    closeBtn.Parent = frame
+
+    local closeCorner = Instance.new("UICorner", closeBtn)
+    closeCorner.CornerRadius = UDim.new(0, 6)
+
+    closeBtn.MouseButton1Click:Connect(function()
+        teleGui:Destroy()
+    end)
+end)
+
+--==============================================================--
+--===== 🧩 الطرف السفلي : نهاية السكربت الأساسي =====--
+--==============================================================--
+-- يمكنك الإضافة بعد هذا السطر دون أي مشاكل.
