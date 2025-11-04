@@ -1,0 +1,221 @@
+--==============================================================--
+--===== 💠 الجزء الأول : تحميل القاعدة الأساسية و تصميم الواجهة =====--
+--==============================================================--
+
+-- خدمات Roblox
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+------------------------------------------------
+-- إنشاء ScreenGui رئيسي
+------------------------------------------------
+local hubGui = Instance.new("ScreenGui")
+hubGui.Name = "InfiniteHub"
+hubGui.ResetOnSpawn = false
+hubGui.Parent = playerGui
+
+------------------------------------------------
+-- الزر الخارجي (فتح / إغلاق القائمة)
+------------------------------------------------
+local openButton = Instance.new("ImageButton")
+openButton.Name = "OpenHub"
+openButton.Size = UDim2.new(0, 60, 0, 60)
+openButton.Position = UDim2.new(0.5, -30, 0.5, -200)
+openButton.AnchorPoint = Vector2.new(0.5, 0.5)
+openButton.BackgroundTransparency = 0.4
+openButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+openButton.Image = ""
+openButton.Parent = hubGui
+
+local openCorner = Instance.new("UICorner", openButton)
+openCorner.CornerRadius = UDim.new(1, 0)
+
+local openLabel = Instance.new("TextLabel")
+openLabel.Size = UDim2.new(1, 0, 1, 0)
+openLabel.BackgroundTransparency = 1
+openLabel.Text = "⚙️"
+openLabel.TextColor3 = Color3.fromRGB(255,255,255)
+openLabel.TextScaled = true
+openLabel.Parent = openButton
+
+------------------------------------------------
+-- سحب الزر الخارجي
+------------------------------------------------
+local dragging, dragStart, startPos
+local function updateDrag(input)
+	local delta = input.Position - dragStart
+	openButton.Position = UDim2.new(
+		startPos.X.Scale, startPos.X.Offset + delta.X,
+		startPos.Y.Scale, startPos.Y.Offset + delta.Y
+	)
+end
+
+openButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = openButton.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		updateDrag(input)
+	end
+end)
+
+------------------------------------------------
+-- الإطار الرئيسي للقائمة (في منتصف الشاشة)
+------------------------------------------------
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 400, 0, 0)
+mainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mainFrame.BackgroundTransparency = 0.15
+mainFrame.Visible = false
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = hubGui
+
+local mainCorner = Instance.new("UICorner", mainFrame)
+mainCorner.CornerRadius = UDim.new(0, 10)
+
+local mainStroke = Instance.new("UIStroke", mainFrame)
+mainStroke.Thickness = 2
+mainStroke.Color = Color3.fromRGB(255,0,0)
+
+------------------------------------------------
+-- الأزرار العلوية (Tabs)
+------------------------------------------------
+local tabsFrame = Instance.new("Frame")
+tabsFrame.Name = "Tabs"
+tabsFrame.Size = UDim2.new(1, 0, 0, 40)
+tabsFrame.BackgroundTransparency = 1
+tabsFrame.Parent = mainFrame
+
+local tabsLayout = Instance.new("UIListLayout", tabsFrame)
+tabsLayout.FillDirection = Enum.FillDirection.Horizontal
+tabsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+tabsLayout.Padding = UDim.new(0, 10)
+
+local sections = {"Settings", "Power", "Teleport", "ESP"}
+local sectionFrames = {}
+local currentSection = "Settings"
+
+local function switchSection(section)
+	for name, frame in pairs(sectionFrames) do
+		frame.Visible = (name == section)
+	end
+	currentSection = section
+end
+
+for _, name in ipairs(sections) do
+	local tab = Instance.new("TextButton")
+	tab.Name = name.."Tab"
+	tab.Text = name
+	tab.Size = UDim2.new(0, 80, 0, 30)
+	tab.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+	tab.TextColor3 = Color3.fromRGB(255, 255, 255)
+	tab.Font = Enum.Font.GothamBold
+	tab.TextSize = 14
+	tab.Parent = tabsFrame
+
+	local tabCorner = Instance.new("UICorner", tab)
+	tabCorner.CornerRadius = UDim.new(0, 6)
+
+	tab.MouseButton1Click:Connect(function()
+		switchSection(name)
+	end)
+end
+
+------------------------------------------------
+-- إنشاء الإطارات الداخلية لكل قسم
+------------------------------------------------
+for _, name in ipairs(sections) do
+	local frame = Instance.new("Frame")
+	frame.Name = name.."Frame"
+	frame.Size = UDim2.new(1, -20, 1, -60)
+	frame.Position = UDim2.new(0, 10, 0, 50)
+	frame.BackgroundTransparency = 1
+	frame.Visible = (name == "Settings")
+	frame.Parent = mainFrame
+
+	local layout = Instance.new("UIListLayout", frame)
+	layout.Padding = UDim.new(0, 6)
+	layout.FillDirection = Enum.FillDirection.Vertical
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+	sectionFrames[name] = frame
+end
+
+------------------------------------------------
+-- أنميشن فتح / إغلاق القائمة
+------------------------------------------------
+local openTween = TweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0,400,0,300)})
+local closeTween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0,400,0,0)})
+
+openButton.MouseButton1Click:Connect(function()
+	if mainFrame.Visible then
+		closeTween:Play()
+		task.delay(0.3, function() mainFrame.Visible = false end)
+	else
+		mainFrame.Visible = true
+		openTween:Play()
+	end
+end)
+
+------------------------------------------------
+-- دالة إنشاء زر ميزة (للاستخدام في الجزء الثاني)
+------------------------------------------------
+function AddFeature(featureName, sectionName, onClick)
+	local target = sectionFrames[sectionName]
+	if not target then warn("⚠️ قسم غير موجود:", sectionName) return end
+
+	local btn = Instance.new("TextButton")
+	btn.Name = featureName.."Button"
+	btn.Size = UDim2.new(0, 320, 0, 35)
+	btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	btn.TextColor3 = Color3.fromRGB(255,255,255)
+	btn.Font = Enum.Font.GothamSemibold
+	btn.Text = featureName
+	btn.TextSize = 14
+	btn.Parent = target
+
+	local bCorner = Instance.new("UICorner", btn)
+	bCorner.CornerRadius = UDim.new(0, 6)
+
+	local bStroke = Instance.new("UIStroke", btn)
+	bStroke.Thickness = 1
+	bStroke.Color = Color3.fromRGB(255,0,0)
+
+	btn.MouseButton1Click:Connect(onClick)
+end
+
+
+--==============================================================--
+--===== ⚙️ الجزء الثاني : قاعدة الأزرار و مساحة الخواص (SpaceButton) =====--
+--==============================================================--
+
+-- ✳️ هنا المساحة المفتوحة لإضافة الأزرار والمميزات يدويًا
+-- استخدم AddFeature("اسم الميزة", "اسم القسم", function() ... end)
+
+-- مثال توضيحي (زر تجريبي):
+-- AddFeature("Test Feature", "Settings", function()
+--     print("تم الضغط على زر تجريبي ✅")
+-- end)
+
+
+--==============================================================--
+--===== 🧩 الطرف السفلي : نهاية السكربت الأساسي =====--
+--==============================================================--
+-- يمكنك الإضافة بعد هذا السطر دون أي مشاكل.
