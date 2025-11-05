@@ -462,6 +462,21 @@ AddFeature("فتح قائمة الانتقال", "Teleport", function()
     end)
 end)
 
+-- زر تشغيل واجهة Coins Shop
+AddFeature("فتح متجر الكوينز", "Settings", function()
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local Toggle = ReplicatedStorage:FindFirstChild("Controllers")
+        and ReplicatedStorage.Controllers:FindFirstChild("InterfaceController")
+        and ReplicatedStorage.Controllers.InterfaceController:FindFirstChild("Toggle")
+
+    if Toggle then
+        Toggle:Fire("CoinsShop", false)
+        print("✅ تم تشغيل متجر الكوينز")
+    else
+        warn("⚠️ لم يتم العثور على الريموت Toggle داخل InterfaceController")
+    end
+end)
+
 --==============================================================--
 --===== 🧩 الطرف السفلي : نهاية السكربت الأساسي =====--
 --==============================================================--
