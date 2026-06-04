@@ -1,0 +1,35 @@
+import telebot
+
+# 1. ضع توكن البوت الخاص بك هنا (تحصل عليه من BotFather)
+BOT_TOKEN = '7606845568:AAG1grPFpHEbjSWxCaB8-DfHEM1n2tL0snQ'
+
+# 2. ضع الـ ID الخاص بالمستخدم الذي تريد إرسال الصورة إليه
+# (يجب أن يكون رقماً، مثلاً: 123456789)
+USER_ID = '6428035873'
+
+# إعداد البوت
+bot = telebot.TeleBot(BOT_TOKEN)
+
+def send_image():
+    # 3. مسار الصورة (إذا كانت الصورة على جهازك في نفس مجلد السكربت)
+    # يمكنك وضع المسار الكامل مثل 'C:/images/pic.jpg'
+    image_path = 'image.jpg' 
+    
+    try:
+        # فتح الصورة كملف ثنائي وإرسالها
+        with open(image_path, 'rb') as photo:
+            # يمكنك تعديل النص المرفق مع الصورة في المتغير caption
+            bot.send_photo(
+                chat_id=USER_ID, 
+                photo=photo, 
+                caption="مرحباً! هذه هي الصورة 🖼️"
+            )
+        print("✅ تم إرسال الصورة بنجاح إلى المستخدم!")
+        
+    except FileNotFoundError:
+        print("❌ خطأ: لم يتم العثور على الصورة. تأكد من مسار واسم الصورة.")
+    except Exception as e:
+        print(f"❌ حدث خطأ غير متوقع: {e}")
+
+if __name__ == '__main__':
+    send_image()
