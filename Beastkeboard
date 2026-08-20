@@ -1,0 +1,527 @@
+-- ==========================================
+-- SCRIPT: سكربت ابو الصوف (Abo El-Soof Hub) v5.3 - الإصدار النهائي المستقر (تم الإصلاح)
+-- ==========================================
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- انتظار تحميل اللاعب لتجنب الأخطاء عند التشغيل من أول مرة
+if not LocalPlayer then
+    Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+    LocalPlayer = Players.LocalPlayer
+end
+
+-- ==========================================
+-- 🛠️ نظام الأمان وتحديد مسار الواجهة
+-- ==========================================
+local UI_Parent
+local success = pcall(function()
+    -- محاولة استخدام CoreGui لتخطي الحماية
+    UI_Parent = game:GetService("CoreGui")
+    local test = UI_Parent.Name
+end)
+
+if not success or not UI_Parent then
+    UI_Parent = LocalPlayer:WaitForChild("PlayerGui", 10) or LocalPlayer.PlayerGui
+end
+
+-- حذف الواجهة القديمة إذا كانت موجودة لتجنب التكرار
+if UI_Parent:FindFirstChild("AboElSoofHubGui") then 
+    UI_Parent.AboElSoofHubGui:Destroy() 
+end
+
+-- ==========================================
+-- نظام الألوان (Themes)
+-- ==========================================
+local currentThemeColor = Color3.fromRGB(200, 40, 40)
+local themedBackgrounds = {}
+local themedTexts = {}
+local themedStrokes = {}
+
+local function changeTheme(newColor)
+    currentThemeColor = newColor
+    for _, obj in pairs(themedBackgrounds) do if obj then obj.BackgroundColor3 = currentThemeColor end end
+    for _, obj in pairs(themedTexts) do if obj then obj.TextColor3 = currentThemeColor end end
+    for _, obj in pairs(themedStrokes) do if obj then obj.Color = currentThemeColor end end
+end
+
+-- ==========================================
+-- 1. إنشـاء الواجهة الرئيسية
+-- ==========================================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AboElSoofHubGui"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+screenGui.Parent = UI_Parent
+
+-- الزر العائم
+local openBtn = Instance.new("TextButton")
+openBtn.Size = UDim2.new(0, 50, 0, 50)
+openBtn.Position = UDim2.new(0, 20, 0, 20)
+openBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+openBtn.Text = "🔥"
+openBtn.TextSize = 24
+openBtn.ZIndex = 999
+openBtn.Visible = true
+openBtn.Parent = screenGui
+
+Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
+local openStroke = Instance.new("UIStroke", openBtn)
+openStroke.Color = currentThemeColor
+openStroke.Thickness = 2
+table.insert(themedStrokes, openStroke)
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 450, 0, 320)
+mainFrame.Position = UDim2.new(0.5, -225, 0.5, -160)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+mainFrame.ClipsDescendants = true
+mainFrame.Visible = false -- يبدأ مخفياً
+mainFrame.ZIndex = 1000
+mainFrame.Parent = screenGui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
+
+local titleBar = Instance.new("TextLabel")
+titleBar.Size = UDim2.new(1, 0, 0, 40)
+titleBar.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+titleBar.Text = "   🔥 سكربت ابو الصوف V5.3"
+titleBar.TextColor3 = currentThemeColor
+titleBar.Font = Enum.Font.GothamBold
+titleBar.TextSize = 16
+titleBar.TextXAlignment = Enum.TextXAlignment.Left
+titleBar.ZIndex = 1001
+titleBar.Parent = mainFrame
+table.insert(themedTexts, titleBar)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 40, 0, 40)
+closeBtn.Position = UDim2.new(1, -40, 0, 0)
+closeBtn.BackgroundTransparency = 1
+closeBtn.Text = "✕"
+closeBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 18
+closeBtn.ZIndex = 1002
+closeBtn.Parent = titleBar
+
+-- ربط الأزرار (هذا الجزء كان مفقوداً في سكربتك)
+openBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+end)
+
+-- ==========================================
+-- 2. نظام الصفحات
+-- ==========================================
+local navBar = Instance.new("Frame")
+navBar.Size = UDim2.new(1, -20, 0, 35)
+navBar.Position = UDim2.new(0, 10, 0, 45)
+navBar.BackgroundTransparency = 1
+navBar.ZIndex = 1001
+navBar.Parent = mainFrame
+local navLayout = Instance.new("UIListLayout", navBar)
+navLayout.FillDirection = Enum.FillDirection.Horizontal
+navLayout.Padding = UDim.new(0, 8)
+navLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local pagesContainer = Instance.new("Frame")
+pagesContainer.Size = UDim2.new(1, -20, 1, -90)
+pagesContainer.Position = UDim2.new(0, 10, 0, 85)
+pagesContainer.BackgroundTransparency = 1
+pagesContainer.ZIndex = 1001
+pagesContainer.Parent = mainFrame
+
+local tabs, pages = {}, {}
+local activeTab = 1
+
+local function createPage(pageName, layoutOrder)
+    local tabBtn = Instance.new("TextButton")
+    tabBtn.Size = UDim2.new(0.31, 0, 1, 0)
+    tabBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    tabBtn.Text = pageName
+    tabBtn.TextColor3 = Color3.fromRGB(180, 180, 180)
+    tabBtn.Font = Enum.Font.GothamBold
+    tabBtn.TextSize = 13
+    tabBtn.LayoutOrder = layoutOrder
+    tabBtn.ZIndex = 1002
+    tabBtn.Parent = navBar
+    Instance.new("UICorner", tabBtn).CornerRadius = UDim.new(0, 6)
+
+    local pageFrame = Instance.new("ScrollingFrame")
+    pageFrame.Size = UDim2.new(1, 0, 1, 0)
+    pageFrame.BackgroundTransparency = 1
+    pageFrame.ScrollBarThickness = 4
+    pageFrame.Visible = false
+    pageFrame.ZIndex = 1002
+    pageFrame.Parent = pagesContainer
+    local pageLayout = Instance.new("UIListLayout", pageFrame)
+    pageLayout.Padding = UDim.new(0, 8)
+
+    tabs[layoutOrder] = tabBtn
+    pages[layoutOrder] = pageFrame
+
+    tabBtn.MouseButton1Click:Connect(function()
+        activeTab = layoutOrder
+        for i, page in pairs(pages) do
+            page.Visible = (i == layoutOrder)
+            tabs[i].BackgroundColor3 = (i == layoutOrder) and currentThemeColor or Color3.fromRGB(25, 25, 35)
+            tabs[i].TextColor3 = (i == layoutOrder) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 180)
+        end
+    end)
+    return pageFrame
+end
+
+local pageHome = createPage("البيت 🏠", 1)
+local pagePlayer = createPage("اللاعب 👤", 2)
+local pageSettings = createPage("الاعدادات ⚙️", 3)
+
+-- ==========================================
+-- 3. دوال مساعدة للواجهة
+-- ==========================================
+local function createButton(parentPage, name, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 38)
+    btn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    btn.Text = name
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 13
+    btn.ZIndex = 1003
+    btn.Parent = parentPage
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    btn.MouseButton1Click:Connect(callback)
+    return btn
+end
+
+local function createToggle(parentPage, name, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 38)
+    btn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    btn.Text = name .. " : متوقف 🔴"
+    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 13
+    btn.ZIndex = 1003
+    btn.Parent = parentPage
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+    local state = false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        btn.Text = state and (name .. " : شغال 🟢") or (name .. " : متوقف 🔴")
+        btn.TextColor3 = state and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(200, 200, 200)
+        btn.BackgroundColor3 = state and Color3.fromRGB(40, 55, 40) or Color3.fromRGB(25, 25, 35)
+        callback(state)
+    end)
+end
+
+-- ==========================================
+-- 4. إنشاء اللوحات الصغيرة (Mini Panels)
+-- ==========================================
+local function createMiniPanel(name, title)
+    local panel = Instance.new("Frame")
+    panel.Name = name
+    panel.Size = UDim2.new(0, 200, 0, 250)
+    panel.Position = UDim2.new(0.5, 240, 0.4, -70)
+    panel.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    panel.Visible = false
+    panel.ZIndex = 1005
+    panel.Parent = screenGui
+    Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 10)
+
+    local topBar = Instance.new("TextLabel")
+    topBar.Size = UDim2.new(1, 0, 0, 35)
+    topBar.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+    topBar.Text = " " .. title
+    topBar.TextColor3 = currentThemeColor
+    topBar.Font = Enum.Font.GothamBold
+    topBar.TextSize = 13
+    topBar.ZIndex = 1006
+    topBar.Parent = panel
+    table.insert(themedTexts, topBar)
+    Instance.new("UICorner", topBar).CornerRadius = UDim.new(0, 10)
+    
+    return panel, topBar
+end
+
+-- 4.1 لوحة السرعة
+local miniSpeedPanel, speedTitle = createMiniPanel("PowerSpeedGui", "🔥 Power Speed")
+miniSpeedPanel.Size = UDim2.new(0, 180, 0, 140)
+local speedInput = Instance.new("TextBox", miniSpeedPanel)
+speedInput.Size = UDim2.new(0.9, 0, 0, 32)
+speedInput.Position = UDim2.new(0.05, 0, 0, 45)
+speedInput.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+speedInput.Text = "150"
+speedInput.PlaceholderText = "اكتب السرعة..."
+speedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedInput.ZIndex = 1006
+Instance.new("UICorner", speedInput).CornerRadius = UDim.new(0, 6)
+
+local speedToggleBtn = Instance.new("TextButton", miniSpeedPanel)
+speedToggleBtn.Size = UDim2.new(0.9, 0, 0, 35)
+speedToggleBtn.Position = UDim2.new(0.05, 0, 0, 88)
+speedToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+speedToggleBtn.Text = "تفعيل السرعة 🔴"
+speedToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedToggleBtn.ZIndex = 1006
+Instance.new("UICorner", speedToggleBtn).CornerRadius = UDim.new(0, 6)
+
+local isSpeedEnabled = false
+speedToggleBtn.MouseButton1Click:Connect(function()
+    isSpeedEnabled = not isSpeedEnabled
+    speedToggleBtn.Text = isSpeedEnabled and "تفعيل السرعة 🟢" or "تفعيل السرعة 🔴"
+    speedToggleBtn.BackgroundColor3 = isSpeedEnabled and Color3.fromRGB(40, 200, 40) or Color3.fromRGB(200, 40, 40)
+    
+    if not isSpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = 16 
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if isSpeedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = tonumber(speedInput.Text) or 150
+    end
+end)
+
+-- 4.2 لوحة انتقال WinBlocks
+local winBlockPanel, winBlockTitle = createMiniPanel("WinBlockGui", "📦 انتقال WinBlocks")
+local winScroll = Instance.new("ScrollingFrame", winBlockPanel)
+winScroll.Size = UDim2.new(0.9, 0, 0, 150)
+winScroll.Position = UDim2.new(0.05, 0, 0, 45)
+winScroll.BackgroundTransparency = 1
+winScroll.ScrollBarThickness = 3
+winScroll.ZIndex = 1006
+local winLayout = Instance.new("UIListLayout", winScroll)
+winLayout.Padding = UDim.new(0, 5)
+
+local selectedWinBlock = nil
+local winStatus = Instance.new("TextLabel", winBlockPanel)
+winStatus.Size = UDim2.new(0.9, 0, 0, 20)
+winStatus.Position = UDim2.new(0.05, 0, 0, 200)
+winStatus.BackgroundTransparency = 1
+winStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
+winStatus.Text = "لم يتم التحديد"
+winStatus.TextSize = 12
+winStatus.ZIndex = 1006
+
+for i = 1, 8 do
+    local wbBtn = Instance.new("TextButton", winScroll)
+    wbBtn.Size = UDim2.new(1, 0, 0, 30)
+    wbBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    wbBtn.Text = "WinBlock" .. i
+    wbBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    wbBtn.ZIndex = 1007
+    Instance.new("UICorner", wbBtn).CornerRadius = UDim.new(0, 4)
+    wbBtn.MouseButton1Click:Connect(function()
+        selectedWinBlock = "WinBlock" .. i
+        winStatus.Text = "تم التحديد: " .. selectedWinBlock
+    end)
+end
+
+local tpWinBtn = Instance.new("TextButton", winBlockPanel)
+tpWinBtn.Size = UDim2.new(0.9, 0, 0, 30)
+tpWinBtn.Position = UDim2.new(0.05, 0, 0, 220)
+tpWinBtn.BackgroundColor3 = Color3.fromRGB(40, 200, 40)
+tpWinBtn.Text = "انتقال ⚡"
+tpWinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpWinBtn.ZIndex = 1006
+Instance.new("UICorner", tpWinBtn).CornerRadius = UDim.new(0, 6)
+
+tpWinBtn.MouseButton1Click:Connect(function()
+    if selectedWinBlock then
+        winStatus.Text = "جاري البحث..."
+        local targetBlock = nil
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and obj.Name == selectedWinBlock then
+                targetBlock = obj
+                break
+            end
+        end
+
+        if targetBlock then
+            local wpName = selectedWinBlock .. "_Waypoint"
+            local waypoint = Workspace:FindFirstChild(wpName)
+            if not waypoint then
+                waypoint = Instance.new("Part")
+                waypoint.Name = wpName
+                waypoint.Size = Vector3.new(4, 0.5, 4)
+                waypoint.Position = targetBlock.Position + Vector3.new(3, 3, 0)
+                waypoint.Anchored = true
+                waypoint.CanCollide = false
+                waypoint.Material = Enum.Material.Neon
+                waypoint.Color = Color3.fromRGB(40, 200, 40)
+                waypoint.Parent = Workspace
+            end
+            
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = waypoint.CFrame * CFrame.new(0, 3, 0)
+                winStatus.Text = "تم الانتقال بنجاح ✅"
+            end
+        else
+            winStatus.Text = "❌ البلوك غير موجود بالخريطة!"
+        end
+    end
+end)
+
+-- 4.3 لوحة انتقال اللاعبين
+local playerTpPanel, playerTpTitle = createMiniPanel("PlayerTpGui", "👥 انتقال للاعبين")
+local pScroll = Instance.new("ScrollingFrame", playerTpPanel)
+pScroll.Size = UDim2.new(0.9, 0, 0, 150)
+pScroll.Position = UDim2.new(0.05, 0, 0, 45)
+pScroll.BackgroundTransparency = 1
+pScroll.ScrollBarThickness = 3
+pScroll.ZIndex = 1006
+local pLayout = Instance.new("UIListLayout", pScroll)
+pLayout.Padding = UDim.new(0, 5)
+
+local selectedPlayer = nil
+local pStatus = Instance.new("TextLabel", playerTpPanel)
+pStatus.Size = UDim2.new(0.9, 0, 0, 20)
+pStatus.Position = UDim2.new(0.05, 0, 0, 200)
+pStatus.BackgroundTransparency = 1
+pStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
+pStatus.Text = "لم يتم التحديد"
+pStatus.TextSize = 12
+pStatus.ZIndex = 1006
+
+local function refreshPlayerList()
+    for _, v in pairs(pScroll:GetChildren()) do
+        if v:IsA("TextButton") then v:Destroy() end
+    end
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            local pBtn = Instance.new("TextButton", pScroll)
+            pBtn.Size = UDim2.new(1, 0, 0, 30)
+            pBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+            pBtn.Text = p.Name
+            pBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            pBtn.ZIndex = 1007
+            Instance.new("UICorner", pBtn).CornerRadius = UDim.new(0, 4)
+            pBtn.MouseButton1Click:Connect(function()
+                selectedPlayer = p
+                pStatus.Text = "الهدف: " .. p.Name
+            end)
+        end
+    end
+end
+Players.PlayerAdded:Connect(refreshPlayerList)
+Players.PlayerRemoving:Connect(refreshPlayerList)
+
+local tpPlayerBtn = Instance.new("TextButton", playerTpPanel)
+tpPlayerBtn.Size = UDim2.new(0.9, 0, 0, 30)
+tpPlayerBtn.Position = UDim2.new(0.05, 0, 0, 220)
+tpPlayerBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 220)
+tpPlayerBtn.Text = "انتقال للاعب ⚡"
+tpPlayerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpPlayerBtn.ZIndex = 1006
+Instance.new("UICorner", tpPlayerBtn).CornerRadius = UDim.new(0, 6)
+
+tpPlayerBtn.MouseButton1Click:Connect(function()
+    if selectedPlayer and selectedPlayer.Character and selectedPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = selectedPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+        end
+    else
+        pStatus.Text = "❌ اللاعب غير موجود!"
+    end
+end)
+
+-- ==========================================
+-- 5. برمجة قسم "البيت 🏠"
+-- ==========================================
+createToggle(pageHome, "قائمة السرعة الخارقة", function(state) miniSpeedPanel.Visible = state end)
+createToggle(pageHome, "قائمة الانتقال لـ WinBlocks", function(state) winBlockPanel.Visible = state end)
+
+local ghostMode = false
+createToggle(pageHome, "وضع الشبح 👻 (إلغاء الوجود)", function(state) ghostMode = state end)
+RunService.Stepped:Connect(function()
+    if ghostMode and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Transparency = 1
+                part.CanCollide = false
+            elseif part:IsA("Decal") then
+                part.Transparency = 1
+            end
+        end
+    end
+end)
+
+local infJump = false
+createToggle(pageHome, "قفز لا نهائي", function(state) infJump = state end)
+UserInputService.JumpRequest:Connect(function()
+    if infJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+local antiDeath = false
+createToggle(pageHome, "منع الموت", function(state) antiDeath = state end)
+RunService.RenderStepped:Connect(function()
+    if antiDeath and LocalPlayer.Character then
+        local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
+        if hum then
+            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+            if hum.Health < hum.MaxHealth then hum.Health = hum.MaxHealth end
+        end
+    end
+end)
+
+-- ==========================================
+-- 6. برمجة قسم "اللاعب 👤"
+-- ==========================================
+createToggle(pagePlayer, "قائمة الانتقال للاعبين", function(state) 
+    playerTpPanel.Visible = state 
+    if state then refreshPlayerList() end
+end)
+
+local espEnabled = false
+local espFolder = Instance.new("Folder", UI_Parent)
+espFolder.Name = "AboElSoofESP"
+createToggle(pagePlayer, "كشف اللاعبين (ESP)", function(state)
+    espEnabled = state
+    if not state then espFolder:ClearAllChildren() end
+end)
+RunService.RenderStepped:Connect(function()
+    if espEnabled then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                if not espFolder:FindFirstChild(p.Name) then
+                    local hl = Instance.new("Highlight")
+                    hl.Name = p.Name
+                    hl.Adornee = p.Character
+                    hl.FillColor = currentThemeColor
+                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    hl.Parent = espFolder
+                else
+                    espFolder[p.Name].Adornee = p.Character
+                    espFolder[p.Name].FillColor = currentThemeColor
+                end
+            end
+        end
+    end
+end)
+
+local rainbowBody = false
+createToggle(pagePlayer, "جسم رينبو", function(state) rainbowBody = state end)
+RunService.Heartbeat:Connect(function()
+    if rainbowBody and LocalPlayer.Character then
+        local rColor = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+        for _, part in pairs(LocalPlayer.Character:GetChildren()) do
+            if part:IsA("BasePart") then part.Color = rColor end
+        end
+    end
+end)
+
+-- ==========================================
+-- 7. برمجة قسم "الاعدادات ⚙️"
+-- ==========================================
+createButton(pageSettings, "لون السكربت: أحمر 🔴", function() changeTheme(Color3.fromRGB(200, 40, 40)) tabs[activeTab].BackgroundColor3 = Color3.fromRGB(200, 40, 40) end)
+createButton(pageSettings, "لون السكربت: أصفر 🟡", func
