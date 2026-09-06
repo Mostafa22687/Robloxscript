@@ -1,0 +1,31 @@
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 8)
+Corner.Parent = FPSLabel
+
+--------------------------------------------------
+-- FPS CALCULATOR
+--------------------------------------------------
+
+local frames = 0
+local lastUpdate = os.clock()
+
+RunService.RenderStepped:Connect(function()
+
+	frames += 1
+
+	local now = os.clock()
+
+	if now - lastUpdate >= 0.5 then
+
+		local fps = math.floor(
+			frames / (now - lastUpdate)
+		)
+
+		FPSLabel.Text = "FPS  " .. fps
+
+		frames = 0
+		lastUpdate = now
+	end
+end)
+
+print("Ultra Low Graphics Enabled")
