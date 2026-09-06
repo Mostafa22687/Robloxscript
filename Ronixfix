@@ -1,3 +1,187 @@
+--// LOW GRAPHICS + RED HIGHLIGHT + FPS
+--// LocalScript
+--// StarterPlayer > StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+
+--------------------------------------------------
+-- SETTINGS
+--------------------------------------------------
+
+local HIGHLIGHT_COLOR = Color3.fromRGB(255, 0, 0)
+
+--------------------------------------------------
+-- RED PLAYER HIGHLIGHT
+--------------------------------------------------
+
+local function addHighlight(player)
+
+	if player == LocalPlayer then
+		return
+	end
+
+	local function apply(character)
+
+		local old = character:FindFirstChild("PlayerRedHighlight")
+
+		if old then
+			old:Destroy()
+		end
+
+		local highlight = Instance.new("Highlight")
+
+		highlight.Name = "PlayerRedHighlight"
+		highlight.FillColor = HIGHLIGHT_COLOR
+		highlight.OutlineColor = HIGHLIGHT_COLOR
+
+		highlight.FillTransparency = 0.65
+		highlight.OutlineTransparency = 0
+
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+
+		highlight.Parent = character
+	end
+
+	if player.Character then
+		apply(player.Character)
+	end
+
+	player.CharacterAdded:Connect(function(character)
+		task.wait(0.2)
+		apply(character)
+	end)
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+	addHighlight(player)
+end
+
+Players.PlayerAdded:Connect(addHighlight)
+
+--------------------------------------------------
+-- LOW GRAPHICS
+--------------------------------------------------
+
+local function optimizeObject(object)
+
+	-- إزالة الظلال من الـParts
+	if object:IsA("BasePart") then
+		object.Material = Enum.Material.SmoothPlastic
+		object.Reflectance = 0
+		object.CastShadow = false
+	end
+
+	-- حذف المؤثرات
+	if object:IsA("ParticleEmitter") then
+		object.Enabled = false
+		object.Rate = 0
+	end
+
+	if object:IsA("Trail") then
+		object.Enabled = false
+	end
+
+	if object:IsA("Beam") then
+		object.Enabled = false
+	end
+
+	if object:IsA("Smoke") then
+		object.Enabled = false
+	end
+
+	if object:IsA("Fire") then
+		object.Enabled = false
+	end
+
+	if object:IsA("Sparkles") then
+		object.Enabled = false
+	end
+
+	-- حذف الـTextures والـDecals بصريًا
+	if object:IsA("Decal") or object:IsA("Texture") then
+		object.Transparency = 1
+	end
+end
+
+for _, object in ipairs(workspace:GetDescendants()) do
+	optimizeObject(object)
+end
+
+workspace.DescendantAdded:Connect(function(object)
+	task.defer(function()
+		optimizeObject(object)
+	end)
+end)
+
+--------------------------------------------------
+-- REMOVE SKY + SHADOWS
+--------------------------------------------------
+
+-- إيقاف الظلال
+Lighting.GlobalShadows = false
+
+-- إزالة الـSky
+for _, object in ipairs(Lighting:GetChildren()) do
+	if object:IsA("Sky") then
+		object:Destroy()
+	end
+end
+
+-- إيقاف مؤثرات الإضاءة
+for _, object in ipairs(Lighting:GetChildren()) do
+
+	if object:IsA("Atmosphere")
+		or object:IsA("BloomEffect")
+		or object:IsA("BlurEffect")
+		or object:IsA("ColorCorrectionEffect")
+		or object:IsA("DepthOfFieldEffect")
+		or object:IsA("SunRaysEffect") then
+
+		object.Enabled = false
+	end
+end
+
+-- تقليل تفاصيل الإضاءة
+Lighting.EnvironmentDiffuseScale = 0
+Lighting.EnvironmentSpecularScale = 0
+
+--------------------------------------------------
+-- FPS GUI
+--------------------------------------------------
+
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "FPSCounter"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Parent = PlayerGui
+
+local FPSLabel = Instance.new("TextLabel")
+
+FPSLabel.Size = UDim2.new(0, 115, 0, 34)
+FPSLabel.Position = UDim2.new(1, -125, 0, 10)
+
+FPSLabel.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+FPSLabel.BackgroundTransparency = 0.2
+
+FPSLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+FPSLabel.Font = Enum.Font.GothamBold
+FPSLabel.TextSize = 16
+
+FPSLabel.Text = "FPS  --"
+
+FPSLabel.BorderSizePixel = 0
+
+FPSLabel.Parent = ScreenGui
+
+--------------------------------------------------
+-- FPS ROUNDED CORNER
+--------------------------------------------------
 local Corner = Instance.new("UICorner")
 Corner.CornerRadius = UDim.new(0, 8)
 Corner.Parent = FPSLabel
